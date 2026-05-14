@@ -13,22 +13,13 @@ st.write("Selecciona una sección:")
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.page_link(
-        "pages/dashboard.py",
-        label="📊 Dashboard",
-        icon="📊"
-    )
+    if st.button("📊 Dashboard"):
+        st.switch_page("pages/dashboard.py")
 
 with col2:
-    st.page_link(
-        "pages/prediccion.py",
-        label="🤖 Predicción",
-        icon="🤖"
-    )
+    if st.button("🤖 Predicción"):
+        st.switch_page("pages/prediccion.py")
 
 with col3:
-    st.page_link(
-        "pages/historial.py",
-        label="📜 Historial",
-        icon="📜"
-    )
+    if st.button("📜 Historial"):
+        st.switch_page("pages/historial.py")
