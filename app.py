@@ -8,32 +8,19 @@ st.set_page_config(
 )
 
 # =====================================
-# SIDEBAR
+# FORZAR VISIBILIDAD DEL SIDEBAR
 # =====================================
 
-with st.sidebar:
+st.markdown("""
+<style>
 
-    st.title("📂 Navegación")
+[data-testid="stSidebar"] {
+    min-width: 250px;
+    max-width: 250px;
+}
 
-    st.page_link(
-        "app.py",
-        label="🏠 Inicio"
-    )
-
-    st.page_link(
-        "pages/dashboard.py",
-        label="📊 Dashboard"
-    )
-
-    st.page_link(
-        "pages/prediccion.py",
-        label="🤖 Predicción"
-    )
-
-    st.page_link(
-        "pages/historial.py",
-        label="📜 Historial"
-    )
+</style>
+""", unsafe_allow_html=True)
 
 # =====================================
 # MAIN
@@ -41,8 +28,6 @@ with st.sidebar:
 
 st.title("📈 Sistema Predictivo de Ventas")
 
-st.markdown("""
-Bienvenido al sistema predictivo.
+st.write("Bienvenido al sistema predictivo.")
 
-Usa el menú lateral para navegar.
-""")
+st.info("⬅️ Usa el menú lateral izquierdo para navegar.")
