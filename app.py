@@ -3,13 +3,14 @@ import streamlit as st
 st.set_page_config(
     page_title="Sistema Predictivo",
     page_icon="📊",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 st.title("📈 Sistema Predictivo de Ventas")
 
 st.markdown("""
-Bienvenido al sistema de predicción de ventas.
+Bienvenido al sistema predictivo.
 
-Usa el menú lateral para navegar entre páginas.
+Usa el menú lateral para navegar.
 """)
