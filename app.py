@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 
 # =====================================
 # CONFIG
@@ -11,7 +10,7 @@ st.set_page_config(
 )
 
 # =====================================
-# MENU LATERAL
+# MENU
 # =====================================
 
 pagina = st.sidebar.radio(
@@ -25,93 +24,29 @@ pagina = st.sidebar.radio(
 )
 
 # =====================================
-# INICIO
+# PAGINAS
 # =====================================
 
 if pagina == "Inicio":
 
-    st.title("📈 Sistema Predictivo de Ventas")
+    st.title("📈 Sistema Predictivo")
 
-    st.write("""
-    Bienvenido al sistema predictivo.
-    """)
-
-# =====================================
-# DASHBOARD
-# =====================================
+    st.write("Bienvenido al sistema.")
 
 elif pagina == "Dashboard":
 
-    st.title("📊 Dashboard")
+    from pages.dashboard import show_dashboard
 
-    st.metric(
-        "Ventas Totales",
-        "S/ 25,000"
-    )
-
-    st.metric(
-        "Predicciones",
-        "350"
-    )
-
-# =====================================
-# PREDICCION
-# =====================================
+    show_dashboard()
 
 elif pagina == "Predicción":
 
-    st.title("🤖 Predicción de Ventas")
+    from pages.prediccion import show_prediccion
 
-    fecha = st.date_input("Fecha")
-
-    hora = st.number_input(
-        "Hora",
-        min_value=0,
-        max_value=23
-    )
-
-    producto = st.selectbox(
-        "Producto",
-        [
-            "Coca Cola",
-            "Red Bull",
-            "Inca Kola"
-        ]
-    )
-
-    precio = st.number_input(
-        "Precio",
-        min_value=0.0
-    )
-
-    clima = st.selectbox(
-        "Clima",
-        [
-            "Soleado",
-            "Lluvioso",
-            "Nublado"
-        ]
-    )
-
-    if st.button("Predecir"):
-
-        prediccion_fake = 24
-
-        st.success(
-            f"Cantidad vendida estimada: {prediccion_fake}"
-        )
-
-# =====================================
-# HISTORIAL
-# =====================================
+    show_prediccion()
 
 elif pagina == "Historial":
 
-    st.title("📜 Historial")
+    from pages.historial import show_historial
 
-    df = pd.DataFrame({
-        "Producto": ["Coca Cola", "Red Bull"],
-        "Predicción": [20, 35]
-    })
-
-    st.dataframe(df)
+    show_historial()
