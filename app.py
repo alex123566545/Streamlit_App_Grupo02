@@ -3,23 +3,32 @@ import streamlit as st
 st.set_page_config(
     page_title="Sistema Predictivo",
     page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
 st.title("📈 Sistema Predictivo de Ventas")
 
-st.markdown("""
-Bienvenido al sistema predictivo.
+st.write("Selecciona una sección:")
 
-Usa el menú lateral para navegar.
-""")
-st.markdown("""
-<style>
+col1, col2, col3 = st.columns(3)
 
-section[data-testid="stSidebar"] {
-    background-color: #1E1E1E;
-}
+with col1:
+    st.page_link(
+        "pages/dashboard.py",
+        label="📊 Dashboard",
+        icon="📊"
+    )
 
-</style>
-""", unsafe_allow_html=True)
+with col2:
+    st.page_link(
+        "pages/prediccion.py",
+        label="🤖 Predicción",
+        icon="🤖"
+    )
+
+with col3:
+    st.page_link(
+        "pages/historial.py",
+        label="📜 Historial",
+        icon="📜"
+    )
