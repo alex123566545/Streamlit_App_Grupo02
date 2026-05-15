@@ -2,12 +2,13 @@ import streamlit as st
 import pandas as pd
 import requests
 import pickle
-from datetime import datetime
+
+from utils.database import get_connection
 
 
-# =============================
-# DESCARGA DESDE SUPABASE
-# =============================
+# =====================================
+# DESCARGAR PKL DESDE SUPABASE
+# =====================================
 def load_file(url):
 
     response = requests.get(url)
@@ -16,9 +17,9 @@ def load_file(url):
     return pickle.loads(response.content)
 
 
-# =============================
+# =====================================
 # CARGAR MODELO + ENCODERS
-# =============================
+# =====================================
 @st.cache_resource
 def load_assets():
 
@@ -32,9 +33,46 @@ def load_assets():
     return model, encoders
 
 
-# =============================
-# CREAR FEATURES
-# =============================
+# =====================================
+# CARGAR DATOS GOLD_DIM
+# =====================================
+@st.cache_data
+def load_dimensions():
+
+    conn = get_connection()
+
+    productos = pd.read_sql("""
+        SELECT DISTINCT producto, categoria_producto
+        FROM gold_dim.dim_producto
+        ORDER BY producto
+    """, conn)
+
+    promociones = pd.read_sql("""
+        SELECT DISTINCT tipo_promocion
+        FROM gold_dim.dim_promocion
+        ORDER BY tipo_promocion
+    """, conn)
+
+    tiendas = pd.read_sql("""
+        SELECT DISTINCT ubicacion_tienda, tipo_zona
+        FROM gold_dim.dim_tienda
+        ORDER BY ubicacion_tienda
+    """, conn)
+
+    climas = pd.read_sql("""
+        SELECT DISTINCT clima
+        FROM gold_dim.dim_clima
+        ORDER BY clima
+    """, conn)
+
+    conn.close()
+
+    return productos, promociones, tiendas, climas
+
+
+# =====================================
+# FEATURE ENGINEERING
+# =====================================
 def build_features(
     fecha,
     hora,
@@ -47,33 +85,34 @@ def build_features(
     clima
 ):
 
-    dia_semana = fecha.strftime("%A")
-
     df = pd.DataFrame([{
 
-        # =============================
-        # VARIABLES BASE
-        # =============================
         "mes": fecha.month,
+
         "hora": hora,
+
         "precio_unitario": precio,
 
+        "es_fin_semana":
+            1 if fecha.weekday() >= 5 else 0,
+
+        "hora_pico":
+            1 if (
+                12 <= hora <= 14 or
+                18 <= hora <= 21
+            ) else 0,
+
         "producto": producto,
+
         "categoria_producto": categoria_producto,
+
         "tipo_promocion": tipo_promocion,
+
         "tipo_zona": tipo_zona,
+
         "ubicacion_tienda": ubicacion_tienda,
+
         "clima": clima,
-
-        # =============================
-        # VARIABLES DERIVADAS
-        # =============================
-        "es_fin_semana": 1 if fecha.weekday() >= 5 else 0,
-
-        "hora_pico": 1 if (
-            12 <= hora <= 14 or
-            18 <= hora <= 21
-        ) else 0,
 
         "producto_promocion":
             f"{producto}_{tipo_promocion}",
@@ -86,23 +125,31 @@ def build_features(
         )
     }])
 
-    return df, dia_semana
+    return df
 
 
-# =============================
+# =====================================
 # UI
-# =============================
+# =====================================
 def show_prediccion():
 
     st.title("🤖 Predicción de Ventas")
 
+    # ==============================
+    # CARGAR RECURSOS
+    # ==============================
     model, encoders = load_assets()
 
-    # =============================
-    # INPUTS
-    # =============================
+    productos_df, promociones_df, tiendas_df, climas_df = load_dimensions()
+
+    # ==============================
+    # FECHA
+    # ==============================
     fecha = st.date_input("Fecha")
 
+    # ==============================
+    # HORA
+    # ==============================
     hora = st.number_input(
         "Hora",
         min_value=0,
@@ -110,75 +157,67 @@ def show_prediccion():
         value=12
     )
 
+    # ==============================
+    # PRODUCTO
+    # ==============================
     producto = st.selectbox(
         "Producto",
-        [
-            "Coca Cola",
-            "Red Bull",
-            "Inca Kola"
-        ]
+        productos_df["producto"].unique()
     )
 
-    categoria_producto = st.selectbox(
-        "Categoría",
-        [
-            "Gaseosa",
-            "Energética"
-        ]
-    )
+    # categoría automática
+    categoria_producto = productos_df[
+        productos_df["producto"] == producto
+    ]["categoria_producto"].values[0]
 
+    st.info(f"Categoría: {categoria_producto}")
+
+    # ==============================
+    # PRECIO
+    # ==============================
     precio = st.number_input(
         "Precio Unitario",
         min_value=0.0,
         value=3.50
     )
 
+    # ==============================
+    # PROMOCIÓN
+    # ==============================
     tipo_promocion = st.selectbox(
-        "Tipo de Promoción",
-        [
-            "normal",
-            "descuento",
-            "2x1",
-            "combo"
-        ]
+        "Tipo Promoción",
+        promociones_df["tipo_promocion"].unique()
     )
 
-    tipo_zona = st.selectbox(
-        "Tipo de Zona",
-        [
-            "urbana",
-            "residencial",
-            "comercial"
-        ]
-    )
-
+    # ==============================
+    # TIENDA
+    # ==============================
     ubicacion_tienda = st.selectbox(
-        "Ubicación de Tienda",
-        [
-            "Centro",
-            "Mall",
-            "Aeropuerto"
-        ]
+        "Ubicación Tienda",
+        tiendas_df["ubicacion_tienda"].unique()
     )
 
+    # zona automática
+    tipo_zona = tiendas_df[
+        tiendas_df["ubicacion_tienda"] == ubicacion_tienda
+    ]["tipo_zona"].values[0]
+
+    st.info(f"Zona: {tipo_zona}")
+
+    # ==============================
+    # CLIMA
+    # ==============================
     clima = st.selectbox(
         "Clima",
-        [
-            "Soleado",
-            "Lluvioso",
-            "Nublado"
-        ]
+        climas_df["clima"].unique()
     )
 
-    # =============================
-    # BOTÓN
-    # =============================
+    # ==============================
+    # PREDECIR
+    # ==============================
     if st.button("Predecir"):
 
-        # =============================
-        # FEATURE ENGINEERING
-        # =============================
-        data, dia_semana = build_features(
+        data = build_features(
             fecha,
             hora,
             producto,
@@ -190,9 +229,9 @@ def show_prediccion():
             clima
         )
 
-        # =============================
+        # ==============================
         # ENCODING
-        # =============================
+        # ==============================
         for col, le in encoders.items():
 
             if col in data.columns:
@@ -206,37 +245,11 @@ def show_prediccion():
                     else -1
                 )
 
-        # =============================
+        # ==============================
         # PREDICCIÓN
-        # =============================
+        # ==============================
         pred = model.predict(data)[0]
 
-        # =============================
-        # RESULTADO
-        # =============================
         st.success(
             f"Cantidad estimada: {round(pred)} unidades"
-        )
-
-        # =============================
-        # DETALLES
-        # =============================
-        st.subheader("📋 Resumen")
-
-        resumen = pd.DataFrame([{
-            "Fecha": fecha,
-            "Día": dia_semana,
-            "Producto": producto,
-            "Categoría": categoria_producto,
-            "Precio": precio,
-            "Promoción": tipo_promocion,
-            "Zona": tipo_zona,
-            "Tienda": ubicacion_tienda,
-            "Clima": clima,
-            "Predicción": round(pred)
-        }])
-
-        st.dataframe(
-            resumen,
-            use_container_width=True
         )
