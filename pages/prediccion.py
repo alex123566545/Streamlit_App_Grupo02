@@ -10,7 +10,7 @@ from utils.database import get_connection
 # =============================
 def load_file(url):
     response = requests.get(url)
-    response.raise_for_status()  # 🔥 evita silencios si falla
+    response.raise_for_status()
     return pickle.loads(response.content)
 
 
@@ -30,16 +30,45 @@ def load_assets():
 
 
 # =============================
+# FEATURE ENGINEERING IGUAL AL ETL
+# =============================
+def build_features(fecha, hora, producto, precio, clima):
+
+    df = pd.DataFrame([{
+        "mes": fecha.month,
+        "hora": hora,
+        "precio_unitario": precio,
+
+        "es_fin_semana": 1 if fecha.weekday() >= 5 else 0,
+        "hora_pico": 1 if (12 <= hora <= 14 or 18 <= hora <= 21) else 0,
+
+        "producto": producto,
+        "categoria_producto": "default",
+        "tipo_promocion": "normal",
+        "tipo_zona": "urbana",
+        "ubicacion_tienda": "default",
+        "clima": clima,
+
+        "producto_promocion": f"{producto}_normal",
+
+        "temporada": (
+            "Q1" if fecha.month <= 3 else
+            "Q2" if fecha.month <= 6 else
+            "Q3" if fecha.month <= 9 else
+            "Q4"
+        )
+    }])
+
+    return df
+
+
+# =============================
 # UI
 # =============================
 def show_prediccion():
 
     st.title("🤖 Predicción de Ventas")
 
-    # 🔌 conexión a base de datos (si luego quieres guardar predicción)
-    conn = get_connection()
-
-    # 🤖 modelo + encoders desde Supabase Storage
     model, encoders = load_assets()
 
     fecha = st.date_input("Fecha")
@@ -68,17 +97,12 @@ def show_prediccion():
     if st.button("Predecir"):
 
         # =============================
-        # INPUT BASE
+        # CREAR FEATURES COMPLETAS
         # =============================
-        data = pd.DataFrame([{
-            "hora": hora,
-            "producto": producto,
-            "precio_unitario": precio,
-            "clima": clima
-        }])
+        data = build_features(fecha, hora, producto, precio, clima)
 
         # =============================
-        # ENCODING (igual al entrenamiento)
+        # ENCODING IGUAL AL ENTRENAMIENTO
         # =============================
         for col, le in encoders.items():
             if col in data.columns:
@@ -88,7 +112,7 @@ def show_prediccion():
                 )
 
         # =============================
-        # PREDICCIÓN
+        # PREDICCIÓN REAL
         # =============================
         pred = model.predict(data)[0]
 
