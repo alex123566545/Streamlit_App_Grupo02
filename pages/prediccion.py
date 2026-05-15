@@ -12,13 +12,14 @@ from utils.database import get_connection
 def load_file(url):
 
     response = requests.get(url)
+
     response.raise_for_status()
 
     return pickle.loads(response.content)
 
 
 # =====================================
-# CARGAR MODELO + ENCODERS
+# CARGAR MODELO + ENCODERS + FEATURES
 # =====================================
 @st.cache_resource
 def load_assets():
@@ -27,10 +28,15 @@ def load_assets():
 
     ENCODERS_URL = "https://klbmaoqxfvjsczwrrwkj.supabase.co/storage/v1/object/public/models/encoders.pkl"
 
+    FEATURES_URL = "https://klbmaoqxfvjsczwrrwkj.supabase.co/storage/v1/object/public/models/features.pkl"
+
     model = load_file(MODEL_URL)
+
     encoders = load_file(ENCODERS_URL)
 
-    return model, encoders
+    features = load_file(FEATURES_URL)
+
+    return model, encoders, features
 
 
 # =====================================
@@ -117,7 +123,13 @@ def build_features(
         "producto_promocion":
             f"{producto}_{tipo_promocion}",
 
-      
+        "temporada": (
+            "Q1" if fecha.month <= 3 else
+            "Q2" if fecha.month <= 6 else
+            "Q3" if fecha.month <= 9 else
+            "Q4"
+        )
+
     }])
 
     return df
@@ -133,7 +145,7 @@ def show_prediccion():
     # ==============================
     # CARGAR RECURSOS
     # ==============================
-    model, encoders = load_assets()
+    model, encoders, features = load_assets()
 
     productos_df, promociones_df, tiendas_df, climas_df = load_dimensions()
 
@@ -160,7 +172,6 @@ def show_prediccion():
         productos_df["producto"].unique()
     )
 
-    # categoría automática
     categoria_producto = productos_df[
         productos_df["producto"] == producto
     ]["categoria_producto"].values[0]
@@ -192,7 +203,6 @@ def show_prediccion():
         tiendas_df["ubicacion_tienda"].unique()
     )
 
-    # zona automática
     tipo_zona = tiendas_df[
         tiendas_df["ubicacion_tienda"] == ubicacion_tienda
     ]["tipo_zona"].values[0]
@@ -239,6 +249,11 @@ def show_prediccion():
                     if x in le.classes_
                     else -1
                 )
+
+        # ==============================
+        # ORDEN EXACTO DEL ENTRENAMIENTO
+        # ==============================
+        data = data[features]
 
         # ==============================
         # PREDICCIÓN
