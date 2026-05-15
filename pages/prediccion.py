@@ -117,12 +117,7 @@ def build_features(
         "producto_promocion":
             f"{producto}_{tipo_promocion}",
 
-        "temporada": (
-            "Q1" if fecha.month <= 3 else
-            "Q2" if fecha.month <= 6 else
-            "Q3" if fecha.month <= 9 else
-            "Q4"
-        )
+      
     }])
 
     return df
