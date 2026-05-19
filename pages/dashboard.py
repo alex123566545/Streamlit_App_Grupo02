@@ -13,474 +13,403 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📊 Dashboard Inteligencia Comercial")
-
 
 # =====================================
-# CARGAR DATOS
+# DASHBOARD
 # =====================================
-@st.cache_data
-def load_data():
+def show_dashboard():
 
-    conn = get_connection()
+    st.title("📊 Dashboard Inteligencia Comercial")
 
-    query = """
-    SELECT *
-    FROM gold_ml.ventas_predicha
-    """
+    # =====================================
+    # CARGAR DATOS
+    # =====================================
+    @st.cache_data
+    def load_data():
 
-    df = pd.read_sql(query, conn)
+        conn = get_connection()
 
-    conn.close()
+        query = """
+        SELECT *
+        FROM gold_ml.ventas_predicha
+        """
 
-    return df
+        df = pd.read_sql(query, conn)
 
+        conn.close()
 
-df = load_data()
+        return df
 
+    df = load_data()
 
-# =====================================
-# VALIDACIÓN
-# =====================================
-if df.empty:
+    # =====================================
+    # VALIDACIÓN
+    # =====================================
+    if df.empty:
 
-    st.warning("No existen datos en ventas_predicha")
+        st.warning("No existen datos en ventas_predicha")
 
-    st.stop()
+        st.stop()
 
+    # =====================================
+    # CONVERTIR FECHA
+    # =====================================
+    df["fecha"] = pd.to_datetime(df["fecha"])
 
-# =====================================
-# CONVERTIR FECHA
-# =====================================
-df["fecha"] = pd.to_datetime(df["fecha"])
+    # =====================================
+    # VARIABLES TEMPORALES
+    # =====================================
+    df["anio"] = df["fecha"].dt.year
 
+    df["mes_nombre"] = df["fecha"].dt.strftime("%B")
 
-# =====================================
-# SIDEBAR
-# =====================================
-st.sidebar.header("🔎 Filtros")
+    df["semana"] = df["fecha"].dt.isocalendar().week
 
+    df["dia"] = df["fecha"].dt.day_name()
 
-# =====================================
-# FILTRO PRODUCTO
-# =====================================
-productos = st.sidebar.multiselect(
-    "Producto",
-    options=df["producto"].unique(),
-    default=df["producto"].unique()
-)
+    # =====================================
+    # SIDEBAR
+    # =====================================
+    st.sidebar.header("🔎 Filtros")
 
-
-# =====================================
-# FILTRO CLIMA
-# =====================================
-climas = st.sidebar.multiselect(
-    "Clima",
-    options=df["clima"].unique(),
-    default=df["clima"].unique()
-)
-
-
-# =====================================
-# FILTRO ZONA
-# =====================================
-zonas = st.sidebar.multiselect(
-    "Zona",
-    options=df["tipo_zona"].unique(),
-    default=df["tipo_zona"].unique()
-)
-
-
-# =====================================
-# FILTRO PROMOCIÓN
-# =====================================
-promociones = st.sidebar.multiselect(
-    "Promoción",
-    options=df["tipo_promocion"].unique(),
-    default=df["tipo_promocion"].unique()
-)
-
-
-# =====================================
-# APLICAR FILTROS
-# =====================================
-df = df[
-    (df["producto"].isin(productos)) &
-    (df["clima"].isin(climas)) &
-    (df["tipo_zona"].isin(zonas)) &
-    (df["tipo_promocion"].isin(promociones))
-]
-
-
-# =====================================
-# KPIs
-# =====================================
-st.subheader("📌 Indicadores Principales")
-
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    st.metric(
-        "Total Predicciones",
-        len(df)
-    )
-
-with col2:
-    st.metric(
-        "Cantidad Predicha Total",
-        int(df["cantidad_predicha"].sum())
-    )
-
-with col3:
-    st.metric(
-        "Promedio Predicción",
-        round(df["cantidad_predicha"].mean(), 2)
-    )
-
-with col4:
-    st.metric(
-        "Productos Únicos",
-        df["producto"].nunique()
-    )
-
-
-# =====================================
-# SELECTBOX ANÁLISIS
-# =====================================
-st.subheader("📈 Análisis de Demanda")
-
-analisis = st.selectbox(
-    "Selecciona el tipo de análisis",
-    [
+    # =====================================
+    # FILTRO PRODUCTOS
+    # =====================================
+    productos = st.sidebar.multiselect(
         "Producto",
+        options=df["producto"].unique(),
+        default=df["producto"].unique()
+    )
+
+    # =====================================
+    # FILTRO CLIMA
+    # =====================================
+    climas = st.sidebar.multiselect(
         "Clima",
-        "Promociones",
-        "Hora",
+        options=df["clima"].unique(),
+        default=df["clima"].unique()
+    )
+
+    # =====================================
+    # FILTRO ZONA
+    # =====================================
+    zonas = st.sidebar.multiselect(
         "Zona",
-        "Día",
-        "Semana",
-        "Mes"
+        options=df["tipo_zona"].unique(),
+        default=df["tipo_zona"].unique()
+    )
+
+    # =====================================
+    # FILTRO PROMOCIÓN
+    # =====================================
+    promociones = st.sidebar.multiselect(
+        "Promoción",
+        options=df["tipo_promocion"].unique(),
+        default=df["tipo_promocion"].unique()
+    )
+
+    # =====================================
+    # FILTRO TIEMPO
+    # =====================================
+    tipo_tiempo = st.sidebar.selectbox(
+        "Analizar Demanda Por",
+        [
+            "Día",
+            "Semana",
+            "Mes",
+            "Hora"
+        ]
+    )
+
+    # =====================================
+    # FILTRO PRODUCTO ANÁLISIS
+    # =====================================
+    producto_analisis = st.sidebar.selectbox(
+        "Producto para análisis temporal",
+        ["Todos"] + list(df["producto"].unique())
+    )
+
+    # =====================================
+    # APLICAR FILTROS
+    # =====================================
+    df = df[
+        (df["producto"].isin(productos)) &
+        (df["clima"].isin(climas)) &
+        (df["tipo_zona"].isin(zonas)) &
+        (df["tipo_promocion"].isin(promociones))
     ]
-)
 
+    # =====================================
+    # FILTRO PRODUCTO TEMPORAL
+    # =====================================
+    if producto_analisis != "Todos":
 
-# =====================================
-# DEMANDA POR PRODUCTO
-# =====================================
-if analisis == "Producto":
+        df_temporal = df[
+            df["producto"] == producto_analisis
+        ]
 
-    ventas_producto = (
-        df.groupby("producto")["cantidad_predicha"]
+    else:
+
+        df_temporal = df.copy()
+
+    # =====================================
+    # KPIs
+    # =====================================
+    st.subheader("📌 Indicadores Principales")
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.metric(
+            "Total Predicciones",
+            len(df)
+        )
+
+    with col2:
+        st.metric(
+            "Cantidad Predicha Total",
+            int(df["cantidad_predicha"].sum())
+        )
+
+    with col3:
+        st.metric(
+            "Promedio Predicción",
+            round(df["cantidad_predicha"].mean(), 2)
+        )
+
+    with col4:
+        producto_top = (
+            df.groupby("producto")["cantidad_predicha"]
+            .sum()
+            .idxmax()
+        )
+
+        st.metric(
+            "Producto Más Demandado",
+            producto_top
+        )
+
+    # =====================================
+    # DEMANDA TEMPORAL
+    # =====================================
+    st.subheader("📈 Demanda Temporal")
+
+    if tipo_tiempo == "Día":
+
+        tiempo_df = (
+            df_temporal.groupby("dia")["cantidad_predicha"]
+            .sum()
+            .reset_index()
+        )
+
+        orden_dias = [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday"
+        ]
+
+        tiempo_df["dia"] = pd.Categorical(
+            tiempo_df["dia"],
+            categories=orden_dias,
+            ordered=True
+        )
+
+        tiempo_df = tiempo_df.sort_values("dia")
+
+        fig_tiempo = px.bar(
+            tiempo_df,
+            x="dia",
+            y="cantidad_predicha",
+            text_auto=True
+        )
+
+    elif tipo_tiempo == "Semana":
+
+        tiempo_df = (
+            df_temporal.groupby("semana")["cantidad_predicha"]
+            .sum()
+            .reset_index()
+        )
+
+        fig_tiempo = px.line(
+            tiempo_df,
+            x="semana",
+            y="cantidad_predicha",
+            markers=True
+        )
+
+    elif tipo_tiempo == "Mes":
+
+        tiempo_df = (
+            df_temporal.groupby("mes_nombre")["cantidad_predicha"]
+            .sum()
+            .reset_index()
+        )
+
+        orden_meses = [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December"
+        ]
+
+        tiempo_df["mes_nombre"] = pd.Categorical(
+            tiempo_df["mes_nombre"],
+            categories=orden_meses,
+            ordered=True
+        )
+
+        tiempo_df = tiempo_df.sort_values("mes_nombre")
+
+        fig_tiempo = px.line(
+            tiempo_df,
+            x="mes_nombre",
+            y="cantidad_predicha",
+            markers=True
+        )
+
+    else:
+
+        tiempo_df = (
+            df_temporal.groupby("hora")["cantidad_predicha"]
+            .sum()
+            .reset_index()
+        )
+
+        fig_tiempo = px.line(
+            tiempo_df,
+            x="hora",
+            y="cantidad_predicha",
+            markers=True
+        )
+
+    st.plotly_chart(
+        fig_tiempo,
+        use_container_width=True
+    )
+
+    # =====================================
+    # PRODUCTOS Y TIEMPO
+    # =====================================
+    st.subheader("🛒 Producto vs Tiempo")
+
+    producto_tiempo = (
+        df.groupby(
+            ["producto", "mes_nombre"]
+        )["cantidad_predicha"]
         .sum()
         .reset_index()
-        .sort_values(by="cantidad_predicha", ascending=False)
     )
 
-    fig = px.bar(
-        ventas_producto,
-        x="producto",
+    fig_producto_tiempo = px.bar(
+        producto_tiempo,
+        x="mes_nombre",
         y="cantidad_predicha",
         color="producto",
-        text_auto=True,
-        title="Demanda por Producto"
+        barmode="group"
     )
 
     st.plotly_chart(
-        fig,
+        fig_producto_tiempo,
         use_container_width=True
     )
 
-
-# =====================================
-# DEMANDA POR CLIMA
-# =====================================
-elif analisis == "Clima":
-
-    ventas_clima = (
-        df.groupby("clima")["cantidad_predicha"]
-        .mean()
-        .reset_index()
-    )
-
-    fig = px.pie(
-        ventas_clima,
-        names="clima",
-        values="cantidad_predicha",
-        title="Demanda según Clima"
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
-
-
-# =====================================
-# IMPACTO PROMOCIONES
-# =====================================
-elif analisis == "Promociones":
+    # =====================================
+    # PROMOCIONES Y TIEMPO
+    # =====================================
+    st.subheader("🏷️ Promociones vs Tiempo")
 
     promo_df = (
-        df.groupby("tipo_promocion")["cantidad_predicha"]
+        df.groupby(
+            ["tipo_promocion", "mes_nombre"]
+        )["cantidad_predicha"]
         .mean()
         .reset_index()
     )
 
-    fig = px.bar(
+    fig_promo = px.line(
         promo_df,
-        x="tipo_promocion",
+        x="mes_nombre",
         y="cantidad_predicha",
         color="tipo_promocion",
-        text_auto=True,
-        title="Impacto de Promociones"
+        markers=True
     )
 
     st.plotly_chart(
-        fig,
+        fig_promo,
         use_container_width=True
     )
 
+    # =====================================
+    # CLIMA Y TIEMPO
+    # =====================================
+    st.subheader("🌦️ Clima vs Tiempo")
 
-# =====================================
-# DEMANDA POR HORA
-# =====================================
-elif analisis == "Hora":
-
-    hora_df = (
-        df.groupby("hora")["cantidad_predicha"]
-        .sum()
+    clima_df = (
+        df.groupby(
+            ["clima", "mes_nombre"]
+        )["cantidad_predicha"]
+        .mean()
         .reset_index()
     )
 
-    fig = px.line(
-        hora_df,
-        x="hora",
+    fig_clima = px.line(
+        clima_df,
+        x="mes_nombre",
         y="cantidad_predicha",
-        markers=True,
-        title="Demanda por Hora"
+        color="clima",
+        markers=True
     )
 
     st.plotly_chart(
-        fig,
+        fig_clima,
         use_container_width=True
     )
 
-
-# =====================================
-# DEMANDA POR ZONA
-# =====================================
-elif analisis == "Zona":
+    # =====================================
+    # ZONAS Y TIEMPO
+    # =====================================
+    st.subheader("🏪 Zona vs Tiempo")
 
     zona_df = (
-        df.groupby("tipo_zona")["cantidad_predicha"]
+        df.groupby(
+            ["tipo_zona", "mes_nombre"]
+        )["cantidad_predicha"]
         .sum()
         .reset_index()
     )
 
-    fig = px.bar(
+    fig_zona = px.bar(
         zona_df,
-        x="tipo_zona",
+        x="mes_nombre",
         y="cantidad_predicha",
         color="tipo_zona",
-        text_auto=True,
-        title="Demanda por Zona"
+        barmode="group"
     )
 
     st.plotly_chart(
-        fig,
+        fig_zona,
         use_container_width=True
     )
 
+    # =====================================
+    # TABLA FINAL
+    # =====================================
+    st.subheader("📋 Datos Analizados")
 
-# =====================================
-# DEMANDA POR DÍA
-# =====================================
-elif analisis == "Día":
-
-    dia_df = (
-        df.groupby("fecha")["cantidad_predicha"]
-        .sum()
-        .reset_index()
-        .sort_values(by="fecha")
-    )
-
-    fig = px.line(
-        dia_df,
-        x="fecha",
-        y="cantidad_predicha",
-        markers=True,
-        title="Demanda por Día"
-    )
-
-    st.plotly_chart(
-        fig,
+    st.dataframe(
+        df,
         use_container_width=True
     )
-
-
-# =====================================
-# DEMANDA POR SEMANA
-# =====================================
-elif analisis == "Semana":
-
-    df["semana"] = df["fecha"].dt.isocalendar().week
-
-    semana_df = (
-        df.groupby("semana")["cantidad_predicha"]
-        .sum()
-        .reset_index()
-    )
-
-    fig = px.bar(
-        semana_df,
-        x="semana",
-        y="cantidad_predicha",
-        text_auto=True,
-        title="Demanda por Semana"
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
-
-
-# =====================================
-# DEMANDA POR MES
-# =====================================
-elif analisis == "Mes":
-
-    mes_df = (
-        df.groupby("mes")["cantidad_predicha"]
-        .sum()
-        .reset_index()
-        .sort_values(by="mes")
-    )
-
-    fig = px.line(
-        mes_df,
-        x="mes",
-        y="cantidad_predicha",
-        markers=True,
-        title="Demanda por Mes"
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
-
-
-# =====================================
-# COMPARACIONES
-# =====================================
-st.subheader("📊 Comparaciones Inteligentes")
-
-
-# =====================================
-# COMBOBOX CATEGORÍA
-# =====================================
-comparacion = st.selectbox(
-    "Comparar categoría",
-    [
-        "Producto",
-        "Clima",
-        "Zona",
-        "Promoción"
-    ]
-)
-
-
-# =====================================
-# COMBOBOX PERIODO
-# =====================================
-periodo = st.selectbox(
-    "Periodo",
-    [
-        "Hora",
-        "Día",
-        "Semana",
-        "Mes"
-    ]
-)
-
-
-# =====================================
-# DEFINIR EJE X
-# =====================================
-if periodo == "Hora":
-
-    eje_x = "hora"
-
-elif periodo == "Día":
-
-    eje_x = "fecha"
-
-elif periodo == "Semana":
-
-    df["semana"] = df["fecha"].dt.isocalendar().week
-
-    eje_x = "semana"
-
-elif periodo == "Mes":
-
-    eje_x = "mes"
-
-
-# =====================================
-# DEFINIR COLUMNA COMPARACIÓN
-# =====================================
-if comparacion == "Producto":
-
-    columna = "producto"
-
-elif comparacion == "Clima":
-
-    columna = "clima"
-
-elif comparacion == "Zona":
-
-    columna = "tipo_zona"
-
-elif comparacion == "Promoción":
-
-    columna = "tipo_promocion"
-
-
-# =====================================
-# DATAFRAME COMPARACIÓN
-# =====================================
-compare_df = (
-    df.groupby([eje_x, columna])["cantidad_predicha"]
-    .sum()
-    .reset_index()
-)
-
-
-# =====================================
-# GRÁFICO COMPARACIÓN
-# =====================================
-fig_compare = px.line(
-    compare_df,
-    x=eje_x,
-    y="cantidad_predicha",
-    color=columna,
-    markers=True,
-    title=f"Comparación de {comparacion} por {periodo}"
-)
-
-st.plotly_chart(
-    fig_compare,
-    use_container_width=True
-)
-
-
-# =====================================
-# TABLA FINAL
-# =====================================
-st.subheader("📋 Datos Analizados")
-
-st.dataframe(
-    df,
-    use_container_width=True
-)
