@@ -1,5 +1,151 @@
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+
+from utils.database import get_connection
+
+
 # =====================================
-# SELECTBOX DE DEMANDAS
+# CONFIG
+# =====================================
+st.set_page_config(
+    page_title="Dashboard Retail IA",
+    layout="wide"
+)
+
+st.title("📊 Dashboard Inteligencia Comercial")
+
+
+# =====================================
+# CARGAR DATOS
+# =====================================
+@st.cache_data
+def load_data():
+
+    conn = get_connection()
+
+    query = """
+    SELECT *
+    FROM gold_ml.ventas_predicha
+    """
+
+    df = pd.read_sql(query, conn)
+
+    conn.close()
+
+    return df
+
+
+df = load_data()
+
+
+# =====================================
+# VALIDACIÓN
+# =====================================
+if df.empty:
+
+    st.warning("No existen datos en ventas_predicha")
+
+    st.stop()
+
+
+# =====================================
+# CONVERTIR FECHA
+# =====================================
+df["fecha"] = pd.to_datetime(df["fecha"])
+
+
+# =====================================
+# SIDEBAR
+# =====================================
+st.sidebar.header("🔎 Filtros")
+
+
+# =====================================
+# FILTRO PRODUCTO
+# =====================================
+productos = st.sidebar.multiselect(
+    "Producto",
+    options=df["producto"].unique(),
+    default=df["producto"].unique()
+)
+
+
+# =====================================
+# FILTRO CLIMA
+# =====================================
+climas = st.sidebar.multiselect(
+    "Clima",
+    options=df["clima"].unique(),
+    default=df["clima"].unique()
+)
+
+
+# =====================================
+# FILTRO ZONA
+# =====================================
+zonas = st.sidebar.multiselect(
+    "Zona",
+    options=df["tipo_zona"].unique(),
+    default=df["tipo_zona"].unique()
+)
+
+
+# =====================================
+# FILTRO PROMOCIÓN
+# =====================================
+promociones = st.sidebar.multiselect(
+    "Promoción",
+    options=df["tipo_promocion"].unique(),
+    default=df["tipo_promocion"].unique()
+)
+
+
+# =====================================
+# APLICAR FILTROS
+# =====================================
+df = df[
+    (df["producto"].isin(productos)) &
+    (df["clima"].isin(climas)) &
+    (df["tipo_zona"].isin(zonas)) &
+    (df["tipo_promocion"].isin(promociones))
+]
+
+
+# =====================================
+# KPIs
+# =====================================
+st.subheader("📌 Indicadores Principales")
+
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    st.metric(
+        "Total Predicciones",
+        len(df)
+    )
+
+with col2:
+    st.metric(
+        "Cantidad Predicha Total",
+        int(df["cantidad_predicha"].sum())
+    )
+
+with col3:
+    st.metric(
+        "Promedio Predicción",
+        round(df["cantidad_predicha"].mean(), 2)
+    )
+
+with col4:
+    st.metric(
+        "Productos Únicos",
+        df["producto"].nunique()
+    )
+
+
+# =====================================
+# SELECTBOX DE ANÁLISIS
 # =====================================
 st.subheader("📈 Análisis de Demanda")
 
@@ -220,3 +366,14 @@ elif analisis == "Mes":
         fig,
         use_container_width=True
     )
+
+
+# =====================================
+# TABLA FINAL
+# =====================================
+st.subheader("📋 Datos Analizados")
+
+st.dataframe(
+    df,
+    use_container_width=True
+)
