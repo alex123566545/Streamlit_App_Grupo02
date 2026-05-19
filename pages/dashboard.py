@@ -6,15 +6,6 @@ from utils.database import get_connection
 
 
 # =====================================
-# CONFIG
-# =====================================
-st.set_page_config(
-    page_title="Dashboard Retail IA",
-    layout="wide"
-)
-
-
-# =====================================
 # DASHBOARD
 # =====================================
 def show_dashboard():
@@ -178,16 +169,19 @@ def show_dashboard():
         )
 
     with col4:
-        producto_top = (
-            df.groupby("producto")["cantidad_predicha"]
-            .sum()
-            .idxmax()
-        )
 
-        st.metric(
-            "Producto Más Demandado",
-            producto_top
-        )
+        if not df.empty:
+
+            producto_top = (
+                df.groupby("producto")["cantidad_predicha"]
+                .sum()
+                .idxmax()
+            )
+
+            st.metric(
+                "Producto Más Demandado",
+                producto_top
+            )
 
     # =====================================
     # DEMANDA TEMPORAL
