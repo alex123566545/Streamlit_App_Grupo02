@@ -55,6 +55,16 @@ def show_dashboard():
 
 
     # =====================================
+    # CONVERTIR FECHAS
+    # =====================================
+    df["fecha"] = pd.to_datetime(df["fecha"])
+
+    df["semana"] = df["fecha"].dt.isocalendar().week
+
+    df["mes_nombre"] = df["fecha"].dt.strftime("%B")
+
+
+    # =====================================
     # FILTROS
     # =====================================
     st.sidebar.header("🔎 Filtros")
@@ -129,6 +139,7 @@ def show_dashboard():
 
     # =====================================
     # GRÁFICO 1
+    # DEMANDA POR PRODUCTO
     # =====================================
     st.subheader("🛒 Demanda por Producto")
 
@@ -154,6 +165,7 @@ def show_dashboard():
 
     # =====================================
     # GRÁFICO 2
+    # DEMANDA POR CLIMA
     # =====================================
     st.subheader("🌦️ Demanda según Clima")
 
@@ -177,6 +189,7 @@ def show_dashboard():
 
     # =====================================
     # GRÁFICO 3
+    # PROMOCIONES
     # =====================================
     st.subheader("🏷️ Impacto de Promociones")
 
@@ -201,6 +214,7 @@ def show_dashboard():
 
     # =====================================
     # GRÁFICO 4
+    # HORAS PICO
     # =====================================
     st.subheader("⏰ Demanda por Hora")
 
@@ -225,6 +239,7 @@ def show_dashboard():
 
     # =====================================
     # GRÁFICO 5
+    # ZONAS
     # =====================================
     st.subheader("🏪 Demanda por Zona")
 
@@ -243,6 +258,104 @@ def show_dashboard():
 
     st.plotly_chart(
         fig_zona,
+        use_container_width=True
+    )
+
+
+    # =====================================
+    # GRÁFICO 6
+    # DEMANDA DIARIA
+    # =====================================
+    st.subheader("📅 Demanda por Día")
+
+    dia_df = (
+        df.groupby("fecha")["cantidad_predicha"]
+        .sum()
+        .reset_index()
+    )
+
+    fig_dia = px.line(
+        dia_df,
+        x="fecha",
+        y="cantidad_predicha",
+        markers=True
+    )
+
+    st.plotly_chart(
+        fig_dia,
+        use_container_width=True
+    )
+
+
+    # =====================================
+    # GRÁFICO 7
+    # DEMANDA SEMANAL
+    # =====================================
+    st.subheader("🗓️ Demanda por Semana")
+
+    semana_df = (
+        df.groupby("semana")["cantidad_predicha"]
+        .sum()
+        .reset_index()
+    )
+
+    fig_semana = px.bar(
+        semana_df,
+        x="semana",
+        y="cantidad_predicha",
+        text_auto=True
+    )
+
+    st.plotly_chart(
+        fig_semana,
+        use_container_width=True
+    )
+
+
+    # =====================================
+    # GRÁFICO 8
+    # DEMANDA MENSUAL
+    # =====================================
+    st.subheader("📦 Demanda por Mes")
+
+    mes_df = (
+        df.groupby("mes_nombre")["cantidad_predicha"]
+        .sum()
+        .reset_index()
+    )
+
+    orden_meses = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December"
+    ]
+
+    mes_df["mes_nombre"] = pd.Categorical(
+        mes_df["mes_nombre"],
+        categories=orden_meses,
+        ordered=True
+    )
+
+    mes_df = mes_df.sort_values("mes_nombre")
+
+    fig_mes = px.line(
+        mes_df,
+        x="mes_nombre",
+        y="cantidad_predicha",
+        markers=True
+    )
+
+    st.plotly_chart(
+        fig_mes,
         use_container_width=True
     )
 
