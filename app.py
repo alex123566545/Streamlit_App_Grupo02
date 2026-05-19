@@ -13,7 +13,6 @@ st.set_page_config(
 # =====================================
 from pages.dashboard import show_dashboard
 from pages.prediccion import show_prediccion
-from pages.historial import show_historial
 
 # =====================================
 # SIDEBAR
@@ -26,7 +25,6 @@ pagina = st.sidebar.radio(
         "Inicio",
         "Dashboard",
         "Predicción",
-        "Historial"
     ]
 )
 
@@ -58,6 +56,3 @@ elif pagina == "Predicción":
 
     show_prediccion()
 
-elif pagina == "Historial":
-
-    show_historial()
