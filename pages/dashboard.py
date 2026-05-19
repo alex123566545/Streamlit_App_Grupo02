@@ -145,7 +145,7 @@ with col4:
 
 
 # =====================================
-# SELECTBOX DE ANÁLISIS
+# SELECTBOX ANÁLISIS
 # =====================================
 st.subheader("📈 Análisis de Demanda")
 
@@ -160,6 +160,20 @@ analisis = st.selectbox(
         "Día",
         "Semana",
         "Mes"
+    ]
+)
+
+
+# =====================================
+# SELECTBOX COMPARACIÓN
+# =====================================
+comparacion = st.selectbox(
+    "Comparar por",
+    [
+        "Producto",
+        "Clima",
+        "Zona",
+        "Promoción"
     ]
 )
 
@@ -180,6 +194,7 @@ if analisis == "Producto":
         ventas_producto,
         x="producto",
         y="cantidad_predicha",
+        color="producto",
         text_auto=True,
         title="Demanda por Producto"
     )
@@ -229,6 +244,7 @@ elif analisis == "Promociones":
         promo_df,
         x="tipo_promocion",
         y="cantidad_predicha",
+        color="tipo_promocion",
         text_auto=True,
         title="Impacto de Promociones"
     )
@@ -279,6 +295,7 @@ elif analisis == "Zona":
         zona_df,
         x="tipo_zona",
         y="cantidad_predicha",
+        color="tipo_zona",
         text_auto=True,
         title="Demanda por Zona"
     )
@@ -364,6 +381,116 @@ elif analisis == "Mes":
 
     st.plotly_chart(
         fig,
+        use_container_width=True
+    )
+
+
+# =====================================
+# COMPARACIONES
+# =====================================
+st.subheader("📊 Comparaciones Inteligentes")
+
+
+# =====================================
+# COMPARAR PRODUCTOS
+# =====================================
+if comparacion == "Producto":
+
+    compare_df = (
+        df.groupby(["mes", "producto"])["cantidad_predicha"]
+        .sum()
+        .reset_index()
+    )
+
+    fig_compare = px.line(
+        compare_df,
+        x="mes",
+        y="cantidad_predicha",
+        color="producto",
+        markers=True,
+        title="Comparación de Productos por Mes"
+    )
+
+    st.plotly_chart(
+        fig_compare,
+        use_container_width=True
+    )
+
+
+# =====================================
+# COMPARAR CLIMA
+# =====================================
+elif comparacion == "Clima":
+
+    compare_df = (
+        df.groupby(["mes", "clima"])["cantidad_predicha"]
+        .sum()
+        .reset_index()
+    )
+
+    fig_compare = px.bar(
+        compare_df,
+        x="mes",
+        y="cantidad_predicha",
+        color="clima",
+        barmode="group",
+        title="Comparación de Clima por Mes"
+    )
+
+    st.plotly_chart(
+        fig_compare,
+        use_container_width=True
+    )
+
+
+# =====================================
+# COMPARAR ZONA
+# =====================================
+elif comparacion == "Zona":
+
+    compare_df = (
+        df.groupby(["mes", "tipo_zona"])["cantidad_predicha"]
+        .sum()
+        .reset_index()
+    )
+
+    fig_compare = px.bar(
+        compare_df,
+        x="mes",
+        y="cantidad_predicha",
+        color="tipo_zona",
+        barmode="group",
+        title="Comparación de Zona por Mes"
+    )
+
+    st.plotly_chart(
+        fig_compare,
+        use_container_width=True
+    )
+
+
+# =====================================
+# COMPARAR PROMOCIONES
+# =====================================
+elif comparacion == "Promoción":
+
+    compare_df = (
+        df.groupby(["mes", "tipo_promocion"])["cantidad_predicha"]
+        .sum()
+        .reset_index()
+    )
+
+    fig_compare = px.line(
+        compare_df,
+        x="mes",
+        y="cantidad_predicha",
+        color="tipo_promocion",
+        markers=True,
+        title="Comparación de Promociones por Mes"
+    )
+
+    st.plotly_chart(
+        fig_compare,
         use_container_width=True
     )
 
