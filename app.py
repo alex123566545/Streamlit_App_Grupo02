@@ -16,10 +16,10 @@ st.set_page_config(
 pagina = st.sidebar.radio(
     "📂 Navegación",
     [
-        "Inicio",
-        "Dashboard",
-        "Predicción",
-        "Historial"
+        "inicio",
+        "dashboard",
+        "predicción",
+        "historial"
     ]
 )
 
@@ -33,19 +33,19 @@ if pagina == "Inicio":
 
     st.write("Bienvenido al sistema.")
 
-elif pagina == "Dashboard":
+elif pagina == "dashboard":
 
     from pages.dashboard import show_dashboard
 
     show_dashboard()
 
-elif pagina == "Predicción":
+elif pagina == "predicción":
 
     from pages.prediccion import show_prediccion
 
     show_prediccion()
 
-elif pagina == "Historial":
+elif pagina == "historial":
 
     from pages.historial import show_historial
 
