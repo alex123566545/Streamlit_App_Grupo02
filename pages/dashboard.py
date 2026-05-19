@@ -1,173 +1,27 @@
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-
-from utils.database import get_connection
-
-
 # =====================================
-# CONFIG
+# SELECTBOX DE DEMANDAS
 # =====================================
-st.set_page_config(
-    page_title="Dashboard Retail IA",
-    layout="wide"
-)
+st.subheader("📈 Análisis de Demanda")
 
-st.title("📊 Dashboard Inteligencia Comercial")
-
-
-# =====================================
-# CARGAR DATOS
-# =====================================
-@st.cache_data
-def load_data():
-
-    conn = get_connection()
-
-    query = """
-    SELECT *
-    FROM gold_ml.ventas_predicha
-    """
-
-    df = pd.read_sql(query, conn)
-
-    conn.close()
-
-    return df
-
-
-df = load_data()
-
-
-# =====================================
-# VALIDACIÓN
-# =====================================
-if df.empty:
-
-    st.warning("No existen datos en ventas_predicha")
-
-    st.stop()
-
-
-# =====================================
-# CONVERTIR FECHA
-# =====================================
-df["fecha"] = pd.to_datetime(df["fecha"])
-
-
-# =====================================
-# SIDEBAR
-# =====================================
-st.sidebar.header("🔎 Filtros")
-
-
-# =====================================
-# FILTRO PRODUCTO
-# =====================================
-productos = st.sidebar.multiselect(
-    "Producto",
-    options=df["producto"].unique(),
-    default=df["producto"].unique()
-)
-
-
-# =====================================
-# FILTRO CLIMA
-# =====================================
-climas = st.sidebar.multiselect(
-    "Clima",
-    options=df["clima"].unique(),
-    default=df["clima"].unique()
-)
-
-
-# =====================================
-# FILTRO ZONA
-# =====================================
-zonas = st.sidebar.multiselect(
-    "Zona",
-    options=df["tipo_zona"].unique(),
-    default=df["tipo_zona"].unique()
-)
-
-
-# =====================================
-# FILTRO PROMOCIÓN
-# =====================================
-promociones = st.sidebar.multiselect(
-    "Promoción",
-    options=df["tipo_promocion"].unique(),
-    default=df["tipo_promocion"].unique()
-)
-
-
-# =====================================
-# APLICAR FILTROS
-# =====================================
-df = df[
-    (df["producto"].isin(productos)) &
-    (df["clima"].isin(climas)) &
-    (df["tipo_zona"].isin(zonas)) &
-    (df["tipo_promocion"].isin(promociones))
-]
-
-
-# =====================================
-# KPIs
-# =====================================
-st.subheader("📌 Indicadores Principales")
-
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    st.metric(
-        "Total Predicciones",
-        len(df)
-    )
-
-with col2:
-    st.metric(
-        "Cantidad Predicha Total",
-        int(df["cantidad_predicha"].sum())
-    )
-
-with col3:
-    st.metric(
-        "Promedio Predicción",
-        round(df["cantidad_predicha"].mean(), 2)
-    )
-
-with col4:
-    st.metric(
-        "Productos Únicos",
-        df["producto"].nunique()
-    )
-
-
-# =====================================
-# SELECTBOX DE GRÁFICOS
-# =====================================
-st.subheader("📈 Visualizaciones")
-
-opcion = st.selectbox(
-    "Selecciona un análisis",
+analisis = st.selectbox(
+    "Selecciona el tipo de análisis",
     [
-        "Demanda por Producto",
-        "Demanda por Clima",
-        "Impacto de Promociones",
-        "Demanda por Hora",
-        "Demanda por Zona",
-        "Demanda por Día",
-        "Demanda por Semana",
-        "Demanda por Mes"
+        "Producto",
+        "Clima",
+        "Promociones",
+        "Hora",
+        "Zona",
+        "Día",
+        "Semana",
+        "Mes"
     ]
 )
 
 
 # =====================================
-# GRÁFICO PRODUCTO
+# DEMANDA POR PRODUCTO
 # =====================================
-if opcion == "Demanda por Producto":
+if analisis == "Producto":
 
     ventas_producto = (
         df.groupby("producto")["cantidad_predicha"]
@@ -180,7 +34,8 @@ if opcion == "Demanda por Producto":
         ventas_producto,
         x="producto",
         y="cantidad_predicha",
-        text_auto=True
+        text_auto=True,
+        title="Demanda por Producto"
     )
 
     st.plotly_chart(
@@ -190,9 +45,9 @@ if opcion == "Demanda por Producto":
 
 
 # =====================================
-# GRÁFICO CLIMA
+# DEMANDA POR CLIMA
 # =====================================
-elif opcion == "Demanda por Clima":
+elif analisis == "Clima":
 
     ventas_clima = (
         df.groupby("clima")["cantidad_predicha"]
@@ -203,7 +58,8 @@ elif opcion == "Demanda por Clima":
     fig = px.pie(
         ventas_clima,
         names="clima",
-        values="cantidad_predicha"
+        values="cantidad_predicha",
+        title="Demanda según Clima"
     )
 
     st.plotly_chart(
@@ -213,9 +69,9 @@ elif opcion == "Demanda por Clima":
 
 
 # =====================================
-# GRÁFICO PROMOCIONES
+# IMPACTO PROMOCIONES
 # =====================================
-elif opcion == "Impacto de Promociones":
+elif analisis == "Promociones":
 
     promo_df = (
         df.groupby("tipo_promocion")["cantidad_predicha"]
@@ -227,7 +83,8 @@ elif opcion == "Impacto de Promociones":
         promo_df,
         x="tipo_promocion",
         y="cantidad_predicha",
-        text_auto=True
+        text_auto=True,
+        title="Impacto de Promociones"
     )
 
     st.plotly_chart(
@@ -237,9 +94,9 @@ elif opcion == "Impacto de Promociones":
 
 
 # =====================================
-# GRÁFICO HORA
+# DEMANDA POR HORA
 # =====================================
-elif opcion == "Demanda por Hora":
+elif analisis == "Hora":
 
     hora_df = (
         df.groupby("hora")["cantidad_predicha"]
@@ -251,7 +108,8 @@ elif opcion == "Demanda por Hora":
         hora_df,
         x="hora",
         y="cantidad_predicha",
-        markers=True
+        markers=True,
+        title="Demanda por Hora"
     )
 
     st.plotly_chart(
@@ -261,9 +119,9 @@ elif opcion == "Demanda por Hora":
 
 
 # =====================================
-# GRÁFICO ZONA
+# DEMANDA POR ZONA
 # =====================================
-elif opcion == "Demanda por Zona":
+elif analisis == "Zona":
 
     zona_df = (
         df.groupby("tipo_zona")["cantidad_predicha"]
@@ -275,7 +133,8 @@ elif opcion == "Demanda por Zona":
         zona_df,
         x="tipo_zona",
         y="cantidad_predicha",
-        text_auto=True
+        text_auto=True,
+        title="Demanda por Zona"
     )
 
     st.plotly_chart(
@@ -285,9 +144,9 @@ elif opcion == "Demanda por Zona":
 
 
 # =====================================
-# GRÁFICO DÍA
+# DEMANDA POR DÍA
 # =====================================
-elif opcion == "Demanda por Día":
+elif analisis == "Día":
 
     dia_df = (
         df.groupby("fecha")["cantidad_predicha"]
@@ -300,7 +159,8 @@ elif opcion == "Demanda por Día":
         dia_df,
         x="fecha",
         y="cantidad_predicha",
-        markers=True
+        markers=True,
+        title="Demanda por Día"
     )
 
     st.plotly_chart(
@@ -310,9 +170,9 @@ elif opcion == "Demanda por Día":
 
 
 # =====================================
-# GRÁFICO SEMANA
+# DEMANDA POR SEMANA
 # =====================================
-elif opcion == "Demanda por Semana":
+elif analisis == "Semana":
 
     df["semana"] = df["fecha"].dt.isocalendar().week
 
@@ -326,7 +186,8 @@ elif opcion == "Demanda por Semana":
         semana_df,
         x="semana",
         y="cantidad_predicha",
-        text_auto=True
+        text_auto=True,
+        title="Demanda por Semana"
     )
 
     st.plotly_chart(
@@ -336,9 +197,9 @@ elif opcion == "Demanda por Semana":
 
 
 # =====================================
-# GRÁFICO MES
+# DEMANDA POR MES
 # =====================================
-elif opcion == "Demanda por Mes":
+elif analisis == "Mes":
 
     mes_df = (
         df.groupby("mes")["cantidad_predicha"]
@@ -351,21 +212,11 @@ elif opcion == "Demanda por Mes":
         mes_df,
         x="mes",
         y="cantidad_predicha",
-        markers=True
+        markers=True,
+        title="Demanda por Mes"
     )
 
     st.plotly_chart(
         fig,
         use_container_width=True
     )
-
-
-# =====================================
-# TABLA FINAL
-# =====================================
-st.subheader("📋 Datos Analizados")
-
-st.dataframe(
-    df,
-    use_container_width=True
-)
