@@ -100,10 +100,24 @@ def show_dashboard():
     )
 
     # =====================================
+    # TIPO ANÁLISIS
+    # =====================================
+    tipo_analisis = st.sidebar.selectbox(
+        "Tipo de Análisis",
+        [
+            "Demanda Temporal",
+            "Producto vs Tiempo",
+            "Promoción vs Tiempo",
+            "Clima vs Tiempo",
+            "Zona vs Tiempo"
+        ]
+    )
+
+    # =====================================
     # FILTRO TIEMPO
     # =====================================
     tipo_tiempo = st.sidebar.selectbox(
-        "Analizar Demanda Por",
+        "Analizar por",
         [
             "Día",
             "Semana",
@@ -113,10 +127,10 @@ def show_dashboard():
     )
 
     # =====================================
-    # FILTRO PRODUCTO ANÁLISIS
+    # PRODUCTO ANÁLISIS
     # =====================================
     producto_analisis = st.sidebar.selectbox(
-        "Producto para análisis temporal",
+        "Producto específico",
         ["Todos"] + list(df["producto"].unique())
     )
 
@@ -131,7 +145,7 @@ def show_dashboard():
     ]
 
     # =====================================
-    # FILTRO PRODUCTO TEMPORAL
+    # FILTRO PRODUCTO
     # =====================================
     if producto_analisis != "Todos":
 
@@ -151,18 +165,21 @@ def show_dashboard():
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
+
         st.metric(
             "Total Predicciones",
             len(df)
         )
 
     with col2:
+
         st.metric(
             "Cantidad Predicha Total",
             int(df["cantidad_predicha"].sum())
         )
 
     with col3:
+
         st.metric(
             "Promedio Predicción",
             round(df["cantidad_predicha"].mean(), 2)
@@ -184,219 +201,267 @@ def show_dashboard():
             )
 
     # =====================================
+    # ORDEN DÍAS
+    # =====================================
+    orden_dias = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday"
+    ]
+
+    # =====================================
+    # ORDEN MESES
+    # =====================================
+    orden_meses = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December"
+    ]
+
+    # =====================================
     # DEMANDA TEMPORAL
     # =====================================
-    st.subheader("📈 Demanda Temporal")
+    if tipo_analisis == "Demanda Temporal":
 
-    if tipo_tiempo == "Día":
+        st.subheader("📈 Demanda Temporal")
 
-        tiempo_df = (
-            df_temporal.groupby("dia")["cantidad_predicha"]
+        if tipo_tiempo == "Día":
+
+            tiempo_df = (
+                df_temporal.groupby("dia")["cantidad_predicha"]
+                .sum()
+                .reset_index()
+            )
+
+            tiempo_df["dia"] = pd.Categorical(
+                tiempo_df["dia"],
+                categories=orden_dias,
+                ordered=True
+            )
+
+            tiempo_df = tiempo_df.sort_values("dia")
+
+            fig = px.bar(
+                tiempo_df,
+                x="dia",
+                y="cantidad_predicha",
+                text_auto=True
+            )
+
+        elif tipo_tiempo == "Semana":
+
+            tiempo_df = (
+                df_temporal.groupby("semana")["cantidad_predicha"]
+                .sum()
+                .reset_index()
+            )
+
+            fig = px.line(
+                tiempo_df,
+                x="semana",
+                y="cantidad_predicha",
+                markers=True
+            )
+
+        elif tipo_tiempo == "Mes":
+
+            tiempo_df = (
+                df_temporal.groupby("mes_nombre")["cantidad_predicha"]
+                .sum()
+                .reset_index()
+            )
+
+            tiempo_df["mes_nombre"] = pd.Categorical(
+                tiempo_df["mes_nombre"],
+                categories=orden_meses,
+                ordered=True
+            )
+
+            tiempo_df = tiempo_df.sort_values("mes_nombre")
+
+            fig = px.line(
+                tiempo_df,
+                x="mes_nombre",
+                y="cantidad_predicha",
+                markers=True
+            )
+
+        else:
+
+            tiempo_df = (
+                df_temporal.groupby("hora")["cantidad_predicha"]
+                .sum()
+                .reset_index()
+            )
+
+            fig = px.line(
+                tiempo_df,
+                x="hora",
+                y="cantidad_predicha",
+                markers=True
+            )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+    # =====================================
+    # PRODUCTO VS TIEMPO
+    # =====================================
+    elif tipo_analisis == "Producto vs Tiempo":
+
+        st.subheader("🛒 Producto vs Tiempo")
+
+        producto_df = (
+            df.groupby(
+                ["producto", "mes_nombre"]
+            )["cantidad_predicha"]
             .sum()
             .reset_index()
         )
 
-        orden_dias = [
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday",
-            "Sunday"
-        ]
-
-        tiempo_df["dia"] = pd.Categorical(
-            tiempo_df["dia"],
-            categories=orden_dias,
-            ordered=True
-        )
-
-        tiempo_df = tiempo_df.sort_values("dia")
-
-        fig_tiempo = px.bar(
-            tiempo_df,
-            x="dia",
-            y="cantidad_predicha",
-            text_auto=True
-        )
-
-    elif tipo_tiempo == "Semana":
-
-        tiempo_df = (
-            df_temporal.groupby("semana")["cantidad_predicha"]
-            .sum()
-            .reset_index()
-        )
-
-        fig_tiempo = px.line(
-            tiempo_df,
-            x="semana",
-            y="cantidad_predicha",
-            markers=True
-        )
-
-    elif tipo_tiempo == "Mes":
-
-        tiempo_df = (
-            df_temporal.groupby("mes_nombre")["cantidad_predicha"]
-            .sum()
-            .reset_index()
-        )
-
-        orden_meses = [
-            "January",
-            "February",
-            "March",
-            "April",
-            "May",
-            "June",
-            "July",
-            "August",
-            "September",
-            "October",
-            "November",
-            "December"
-        ]
-
-        tiempo_df["mes_nombre"] = pd.Categorical(
-            tiempo_df["mes_nombre"],
+        producto_df["mes_nombre"] = pd.Categorical(
+            producto_df["mes_nombre"],
             categories=orden_meses,
             ordered=True
         )
 
-        tiempo_df = tiempo_df.sort_values("mes_nombre")
+        producto_df = producto_df.sort_values("mes_nombre")
 
-        fig_tiempo = px.line(
-            tiempo_df,
+        fig = px.bar(
+            producto_df,
             x="mes_nombre",
             y="cantidad_predicha",
+            color="producto",
+            barmode="group"
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+    # =====================================
+    # PROMOCIÓN VS TIEMPO
+    # =====================================
+    elif tipo_analisis == "Promoción vs Tiempo":
+
+        st.subheader("🏷️ Promoción vs Tiempo")
+
+        promo_df = (
+            df.groupby(
+                ["tipo_promocion", "mes_nombre"]
+            )["cantidad_predicha"]
+            .mean()
+            .reset_index()
+        )
+
+        promo_df["mes_nombre"] = pd.Categorical(
+            promo_df["mes_nombre"],
+            categories=orden_meses,
+            ordered=True
+        )
+
+        promo_df = promo_df.sort_values("mes_nombre")
+
+        fig = px.line(
+            promo_df,
+            x="mes_nombre",
+            y="cantidad_predicha",
+            color="tipo_promocion",
             markers=True
         )
 
-    else:
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
 
-        tiempo_df = (
-            df_temporal.groupby("hora")["cantidad_predicha"]
+    # =====================================
+    # CLIMA VS TIEMPO
+    # =====================================
+    elif tipo_analisis == "Clima vs Tiempo":
+
+        st.subheader("🌦️ Clima vs Tiempo")
+
+        clima_df = (
+            df.groupby(
+                ["clima", "mes_nombre"]
+            )["cantidad_predicha"]
+            .mean()
+            .reset_index()
+        )
+
+        clima_df["mes_nombre"] = pd.Categorical(
+            clima_df["mes_nombre"],
+            categories=orden_meses,
+            ordered=True
+        )
+
+        clima_df = clima_df.sort_values("mes_nombre")
+
+        fig = px.line(
+            clima_df,
+            x="mes_nombre",
+            y="cantidad_predicha",
+            color="clima",
+            markers=True
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+    # =====================================
+    # ZONA VS TIEMPO
+    # =====================================
+    elif tipo_analisis == "Zona vs Tiempo":
+
+        st.subheader("🏪 Zona vs Tiempo")
+
+        zona_df = (
+            df.groupby(
+                ["tipo_zona", "mes_nombre"]
+            )["cantidad_predicha"]
             .sum()
             .reset_index()
         )
 
-        fig_tiempo = px.line(
-            tiempo_df,
-            x="hora",
-            y="cantidad_predicha",
-            markers=True
+        zona_df["mes_nombre"] = pd.Categorical(
+            zona_df["mes_nombre"],
+            categories=orden_meses,
+            ordered=True
         )
 
-    st.plotly_chart(
-        fig_tiempo,
-        use_container_width=True
-    )
+        zona_df = zona_df.sort_values("mes_nombre")
 
-    # =====================================
-    # PRODUCTOS Y TIEMPO
-    # =====================================
-    st.subheader("🛒 Producto vs Tiempo")
+        fig = px.bar(
+            zona_df,
+            x="mes_nombre",
+            y="cantidad_predicha",
+            color="tipo_zona",
+            barmode="group"
+        )
 
-    producto_tiempo = (
-        df.groupby(
-            ["producto", "mes_nombre"]
-        )["cantidad_predicha"]
-        .sum()
-        .reset_index()
-    )
-
-    fig_producto_tiempo = px.bar(
-        producto_tiempo,
-        x="mes_nombre",
-        y="cantidad_predicha",
-        color="producto",
-        barmode="group"
-    )
-
-    st.plotly_chart(
-        fig_producto_tiempo,
-        use_container_width=True
-    )
-
-    # =====================================
-    # PROMOCIONES Y TIEMPO
-    # =====================================
-    st.subheader("🏷️ Promociones vs Tiempo")
-
-    promo_df = (
-        df.groupby(
-            ["tipo_promocion", "mes_nombre"]
-        )["cantidad_predicha"]
-        .mean()
-        .reset_index()
-    )
-
-    fig_promo = px.line(
-        promo_df,
-        x="mes_nombre",
-        y="cantidad_predicha",
-        color="tipo_promocion",
-        markers=True
-    )
-
-    st.plotly_chart(
-        fig_promo,
-        use_container_width=True
-    )
-
-    # =====================================
-    # CLIMA Y TIEMPO
-    # =====================================
-    st.subheader("🌦️ Clima vs Tiempo")
-
-    clima_df = (
-        df.groupby(
-            ["clima", "mes_nombre"]
-        )["cantidad_predicha"]
-        .mean()
-        .reset_index()
-    )
-
-    fig_clima = px.line(
-        clima_df,
-        x="mes_nombre",
-        y="cantidad_predicha",
-        color="clima",
-        markers=True
-    )
-
-    st.plotly_chart(
-        fig_clima,
-        use_container_width=True
-    )
-
-    # =====================================
-    # ZONAS Y TIEMPO
-    # =====================================
-    st.subheader("🏪 Zona vs Tiempo")
-
-    zona_df = (
-        df.groupby(
-            ["tipo_zona", "mes_nombre"]
-        )["cantidad_predicha"]
-        .sum()
-        .reset_index()
-    )
-
-    fig_zona = px.bar(
-        zona_df,
-        x="mes_nombre",
-        y="cantidad_predicha",
-        color="tipo_zona",
-        barmode="group"
-    )
-
-    st.plotly_chart(
-        fig_zona,
-        use_container_width=True
-    )
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
 
     # =====================================
     # TABLA FINAL
