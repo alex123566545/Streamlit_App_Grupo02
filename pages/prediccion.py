@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 import pickle
+import plotly.express as px
 
 from utils.database import get_connection
 
@@ -77,6 +78,26 @@ def load_dimensions():
 
 
 # =====================================
+# HISTÓRICO
+# =====================================
+@st.cache_data
+def load_history():
+
+    conn = get_connection()
+
+    query = """
+    SELECT *
+    FROM gold_ml.ventas_predicha
+    """
+
+    df = pd.read_sql(query, conn)
+
+    conn.close()
+
+    return df
+
+
+# =====================================
 # FEATURE ENGINEERING
 # =====================================
 def build_features(
@@ -140,7 +161,7 @@ def build_features(
 # =====================================
 def show_prediccion():
 
-    st.title("🤖 Predicción de Ventas")
+    st.title("🤖 Predicción Inteligente de Ventas")
 
     # ==============================
     # CARGAR RECURSOS
@@ -148,6 +169,8 @@ def show_prediccion():
     model, encoders, features = load_assets()
 
     productos_df, promociones_df, tiendas_df, climas_df = load_dimensions()
+
+    historico_df = load_history()
 
     # ==============================
     # FECHA
@@ -260,6 +283,212 @@ def show_prediccion():
         # ==============================
         pred = model.predict(data)[0]
 
-        st.success(
-            f"Cantidad estimada: {round(pred)} unidades"
+        pred_dia = round(pred)
+
+        pred_semana = round(pred * 7)
+
+        pred_mes = round(pred * 30)
+
+        # ==============================
+        # KPIs
+        # ==============================
+        st.subheader("📊 Resultados Predictivos")
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+
+            st.metric(
+                "Predicción Diaria",
+                f"{pred_dia} unidades"
+            )
+
+        with col2:
+
+            st.metric(
+                "Predicción Semanal",
+                f"{pred_semana} unidades"
+            )
+
+        with col3:
+
+            st.metric(
+                "Predicción Mensual",
+                f"{pred_mes} unidades"
+            )
+
+        # ==============================
+        # NIVEL DE DEMANDA
+        # ==============================
+        st.subheader("🚦 Nivel de Demanda")
+
+        if pred_dia < 20:
+
+            st.error("🔴 Demanda Baja")
+
+        elif pred_dia < 50:
+
+            st.warning("🟡 Demanda Media")
+
+        else:
+
+            st.success("🟢 Demanda Alta")
+
+        # ==============================
+        # INTERPRETACIÓN
+        # ==============================
+        st.subheader("🧠 Interpretación Inteligente")
+
+        factores = []
+
+        if tipo_promocion != "Sin promoción":
+            factores.append("✔ Promoción activa")
+
+        if 12 <= hora <= 14 or 18 <= hora <= 21:
+            factores.append("✔ Hora pico")
+
+        if tipo_zona == "Comercial":
+            factores.append("✔ Zona comercial")
+
+        if clima == "Soleado":
+            factores.append("✔ Clima favorable")
+
+        if fecha.weekday() >= 5:
+            factores.append("✔ Fin de semana")
+
+        if factores:
+
+            st.info(
+                "La demanda esperada es influenciada por:\n\n"
+                + "\n".join(factores)
+            )
+
+        else:
+
+            st.warning(
+                "No se detectaron factores fuertes de incremento."
+            )
+
+        # ==============================
+        # COMPARACIÓN HISTÓRICA
+        # ==============================
+        st.subheader("📈 Comparación Histórica")
+
+        hist_producto = historico_df[
+            historico_df["producto"] == producto
+        ]
+
+        if not hist_producto.empty:
+
+            promedio_hist = round(
+                hist_producto["cantidad_predicha"].mean(),
+                2
+            )
+
+            diferencia = round(
+                ((pred_dia - promedio_hist) / promedio_hist) * 100,
+                2
+            )
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+
+                st.metric(
+                    "Promedio Histórico",
+                    promedio_hist
+                )
+
+            with col2:
+
+                st.metric(
+                    "Variación Esperada",
+                    f"{diferencia}%"
+                )
+
+        # ==============================
+        # PROYECCIÓN TEMPORAL
+        # ==============================
+        st.subheader("📅 Proyección Temporal")
+
+        proyeccion_df = pd.DataFrame({
+
+            "Periodo": [
+                "Día",
+                "Semana",
+                "Mes"
+            ],
+
+            "Cantidad": [
+                pred_dia,
+                pred_semana,
+                pred_mes
+            ]
+        })
+
+        fig = px.bar(
+            proyeccion_df,
+            x="Periodo",
+            y="Cantidad",
+            text_auto=True
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+        # ==============================
+        # RECOMENDACIÓN
+        # ==============================
+        st.subheader("💡 Recomendación Comercial")
+
+        if pred_dia >= 50:
+
+            st.success("""
+            Se recomienda aumentar stock e inventario.
+            La demanda proyectada es elevada.
+            """)
+
+        elif pred_dia >= 20:
+
+            st.warning("""
+            Mantener monitoreo de inventario y promociones.
+            """)
+
+        else:
+
+            st.error("""
+            Evitar sobrestock.
+            La demanda proyectada es baja.
+            """)
+
+        # ==============================
+        # IMPORTANCIA VARIABLES
+        # ==============================
+        st.subheader("⚙ Variables Más Influyentes")
+
+        importancia_df = pd.DataFrame({
+
+            "Variable": features,
+
+            "Importancia": model.feature_importances_
+
+        })
+
+        importancia_df = importancia_df.sort_values(
+            by="Importancia",
+            ascending=False
+        )
+
+        fig_importancia = px.bar(
+            importancia_df.head(10),
+            x="Variable",
+            y="Importancia",
+            text_auto=True
+        )
+
+        st.plotly_chart(
+            fig_importancia,
+            use_container_width=True
         )
