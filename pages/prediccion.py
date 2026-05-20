@@ -72,9 +72,20 @@ def load_dimensions():
         ORDER BY clima
     """, conn)
 
+    # =====================================
+    # PRECIO PROMEDIO POR PRODUCTO
+    # =====================================
+    precios = pd.read_sql("""
+        SELECT
+            producto,
+            ROUND(AVG(precio_unitario), 2) AS precio_promedio
+        FROM gold_ml.ventas_dataset
+        GROUP BY producto
+    """, conn)
+
     conn.close()
 
-    return productos, promociones, tiendas, climas
+    return productos, promociones, tiendas, climas, precios
 
 
 # =====================================
@@ -168,7 +179,7 @@ def show_prediccion():
     # ==============================
     model, encoders, features = load_assets()
 
-    productos_df, promociones_df, tiendas_df, climas_df = load_dimensions()
+    productos_df, promociones_df, tiendas_df, climas_df, precios_df = load_dimensions()
 
     historico_df = load_history()
 
@@ -202,12 +213,25 @@ def show_prediccion():
     st.info(f"Categoría: {categoria_producto}")
 
     # ==============================
+    # PRECIO PROMEDIO
+    # ==============================
+    precio_promedio = precios_df[
+        precios_df["producto"] == producto
+    ]["precio_promedio"].values[0]
+
+    st.info(
+        f"💰 Precio histórico promedio: S/ {precio_promedio}"
+    )
+
+    # ==============================
     # PRECIO
     # ==============================
-    precio = st.number_input(
+    precio = st.slider(
         "Precio Unitario",
-        min_value=0.0,
-        value=3.50
+        min_value=1.0,
+        max_value=20.0,
+        value=float(precio_promedio),
+        step=0.10
     )
 
     # ==============================
@@ -290,6 +314,15 @@ def show_prediccion():
         pred_mes = round(pred * 30)
 
         # ==============================
+        # INGRESOS
+        # ==============================
+        ingreso_dia = round(pred_dia * precio, 2)
+
+        ingreso_semana = round(pred_semana * precio, 2)
+
+        ingreso_mes = round(pred_mes * precio, 2)
+
+        # ==============================
         # KPIs
         # ==============================
         st.subheader("📊 Resultados Predictivos")
@@ -315,6 +348,34 @@ def show_prediccion():
             st.metric(
                 "Predicción Mensual",
                 f"{pred_mes} unidades"
+            )
+
+        # ==============================
+        # INGRESOS ESTIMADOS
+        # ==============================
+        st.subheader("💵 Ingresos Estimados")
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+
+            st.metric(
+                "Ingreso Diario",
+                f"S/ {ingreso_dia}"
+            )
+
+        with col2:
+
+            st.metric(
+                "Ingreso Semanal",
+                f"S/ {ingreso_semana}"
+            )
+
+        with col3:
+
+            st.metric(
+                "Ingreso Mensual",
+                f"S/ {ingreso_mes}"
             )
 
         # ==============================
@@ -355,6 +416,12 @@ def show_prediccion():
 
         if fecha.weekday() >= 5:
             factores.append("✔ Fin de semana")
+
+        if precio < precio_promedio:
+            factores.append("✔ Precio menor al promedio histórico")
+
+        elif precio > precio_promedio:
+            factores.append("✔ Precio mayor al promedio histórico")
 
         if factores:
 
@@ -439,29 +506,102 @@ def show_prediccion():
         )
 
         # ==============================
+        # SIMULACIÓN DE PRECIOS
+        # ==============================
+        st.subheader("💹 Simulación de Precios")
+
+        simulaciones = []
+
+        for p in [
+            round(precio * 0.8, 2),
+            round(precio * 0.9, 2),
+            precio,
+            round(precio * 1.1, 2),
+            round(precio * 1.2, 2)
+        ]:
+
+            data_temp = build_features(
+                fecha,
+                hora,
+                producto,
+                categoria_producto,
+                p,
+                tipo_promocion,
+                tipo_zona,
+                ubicacion_tienda,
+                clima
+            )
+
+            for col, le in encoders.items():
+
+                if col in data_temp.columns:
+
+                    data_temp[col] = data_temp[col].astype(str)
+
+                    data_temp[col] = data_temp[col].apply(
+                        lambda x:
+                        le.transform([x])[0]
+                        if x in le.classes_
+                        else -1
+                    )
+
+            data_temp = data_temp[features]
+
+            pred_temp = round(
+                model.predict(data_temp)[0]
+            )
+
+            ingreso_temp = round(
+                pred_temp * p,
+                2
+            )
+
+            simulaciones.append({
+
+                "Precio": p,
+
+                "Demanda": pred_temp,
+
+                "Ingresos": ingreso_temp
+            })
+
+        simulacion_df = pd.DataFrame(simulaciones)
+
+        st.dataframe(
+            simulacion_df,
+            use_container_width=True
+        )
+
+        fig_sim = px.line(
+            simulacion_df,
+            x="Precio",
+            y="Ingresos",
+            markers=True
+        )
+
+        st.plotly_chart(
+            fig_sim,
+            use_container_width=True
+        )
+
+        # ==============================
         # RECOMENDACIÓN
         # ==============================
         st.subheader("💡 Recomendación Comercial")
 
-        if pred_dia >= 50:
+        mejor_opcion = simulacion_df.loc[
+            simulacion_df["Ingresos"].idxmax()
+        ]
 
-            st.success("""
-            Se recomienda aumentar stock e inventario.
-            La demanda proyectada es elevada.
-            """)
+        st.success(f"""
+        Precio óptimo sugerido: S/ {mejor_opcion["Precio"]}
 
-        elif pred_dia >= 20:
+        Demanda esperada:
+        {mejor_opcion["Demanda"]} unidades
 
-            st.warning("""
-            Mantener monitoreo de inventario y promociones.
-            """)
-
-        else:
-
-            st.error("""
-            Evitar sobrestock.
-            La demanda proyectada es baja.
-            """)
+        Ingreso estimado:
+        S/ {mejor_opcion["Ingresos"]}
+        """)
 
         # ==============================
         # IMPORTANCIA VARIABLES
