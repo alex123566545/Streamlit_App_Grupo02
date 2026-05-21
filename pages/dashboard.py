@@ -31,10 +31,11 @@ PLOTLY_LAYOUT = dict(
     margin=dict(t=30, b=30, l=10, r=10),
     legend=dict(bgcolor="rgba(22,25,32,0.8)", bordercolor="rgba(255,255,255,0.07)", borderwidth=1),
 )
-ACCENT       = "#4f8eff"
-COLOR_SEQ    = ["#4f8eff","#a78bfa","#34d399","#f97316","#fb7185","#fbbf24"]
-ORDEN_DIAS   = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
-ORDEN_MESES  = ["January","February","March","April","May","June","July","August","September","October","November","December"]
+ACCENT      = "#4f8eff"
+COLOR_SEQ   = ["#4f8eff", "#a78bfa", "#34d399", "#f97316", "#fb7185", "#fbbf24"]
+ORDEN_DIAS  = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+ORDEN_MESES = ["January", "February", "March", "April", "May", "June",
+               "July", "August", "September", "October", "November", "December"]
 
 
 def apply_layout(fig):
@@ -46,7 +47,6 @@ def apply_layout(fig):
 
 def show_dashboard():
 
-    # Evita ejecución directa como página autónoma de Streamlit
     if "pagina" not in st.session_state:
         st.stop()
 
@@ -83,40 +83,64 @@ def show_dashboard():
     df["semana"]     = df["fecha"].dt.isocalendar().week
     df["dia"]        = df["fecha"].dt.day_name()
 
-    # ── Filtros inline (sin sidebar) ──────────────────────────────────────────
+    # ── Filtros ───────────────────────────────────────────────────────────────
     with st.expander("🔎 Filtros y configuración", expanded=True):
 
         st.markdown('<div class="filter-title">Filtros de datos</div>', unsafe_allow_html=True)
         col_f1, col_f2, col_f3, col_f4 = st.columns(4)
 
         with col_f1:
-            productos = st.multiselect("Producto", options=df["producto"].unique(),
-                                       default=df["producto"].unique(), key="f_productos")
+            productos = st.multiselect(
+                "Producto", options=df["producto"].unique(),
+                default=df["producto"].unique(), key="f_productos"
+            )
         with col_f2:
-            climas = st.multiselect("Clima", options=df["clima"].unique(),
-                                    default=df["clima"].unique(), key="f_climas")
+            climas = st.multiselect(
+                "Clima", options=df["clima"].unique(),
+                default=df["clima"].unique(), key="f_climas"
+            )
         with col_f3:
-            zonas = st.multiselect("Zona", options=df["tipo_zona"].unique(),
-                                   default=df["tipo_zona"].unique(), key="f_zonas")
+            zonas = st.multiselect(
+                "Zona", options=df["tipo_zona"].unique(),
+                default=df["tipo_zona"].unique(), key="f_zonas"
+            )
         with col_f4:
-            promociones = st.multiselect("Promoción", options=df["tipo_promocion"].unique(),
-                                         default=df["tipo_promocion"].unique(), key="f_promos")
+            promociones = st.multiselect(
+                "Promoción", options=df["tipo_promocion"].unique(),
+                default=df["tipo_promocion"].unique(), key="f_promos"
+            )
 
         st.markdown('<div class="filter-title" style="margin-top:1rem;">Configuración de análisis</div>',
                     unsafe_allow_html=True)
-        col_a1, col_a2, col_a3 = st.columns(3)
 
-        with col_a1:
-            tipo_analisis = st.selectbox("Tipo de análisis",
-                ["Demanda Temporal","Producto vs Tiempo","Promoción vs Tiempo",
-                 "Clima vs Tiempo","Zona vs Tiempo"], key="tipo_analisis")
-        with col_a2:
-            tipo_tiempo = st.selectbox("Agrupar por", ["Día","Semana","Mes","Hora"], key="tipo_tiempo")
-        with col_a3:
-            producto_analisis = st.selectbox("Producto específico",
-                ["Todos"] + list(df["producto"].unique()), key="prod_analisis")
+        # Tipo de análisis siempre visible
+        tipo_analisis = st.selectbox(
+            "Tipo de análisis",
+            ["Demanda Temporal", "Producto vs Tiempo", "Promoción vs Tiempo",
+             "Clima vs Tiempo", "Zona vs Tiempo"],
+            key="tipo_analisis"
+        )
+
+        # "Agrupar por" y "Producto específico" SOLO para Demanda Temporal
+        tipo_tiempo       = "Mes"
+        producto_analisis = "Todos"
+
+        if tipo_analisis == "Demanda Temporal":
+            col_a1, col_a2 = st.columns(2)
+            with col_a1:
+                tipo_tiempo = st.selectbox(
+                    "Agrupar por", ["Día", "Semana", "Mes", "Hora"], key="tipo_tiempo"
+                )
+            with col_a2:
+                producto_analisis = st.selectbox(
+                    "Producto específico",
+                    ["Todos"] + list(df["producto"].unique()),
+                    key="prod_analisis"
+                )
 
     # ── Aplicar filtros ───────────────────────────────────────────────────────
+    # df_filtrado: respeta clima, zona, promoción y multiselect de productos.
+    # Se usa en todos los análisis comparativos (Producto/Promo/Clima/Zona vs Tiempo).
     df_filtrado = df[
         df["producto"].isin(productos) &
         df["clima"].isin(climas) &
@@ -124,50 +148,56 @@ def show_dashboard():
         df["tipo_promocion"].isin(promociones)
     ]
 
-    # df_temporal: aplica además el filtro de producto específico.
-    # Se usa como fuente de datos en TODOS los tipos de análisis.
-    if producto_analisis != "Todos":
+    # df_temporal: solo para Demanda Temporal.
+    # Si se elige un producto específico, filtra a ese único producto.
+    if tipo_analisis == "Demanda Temporal" and producto_analisis != "Todos":
         df_temporal = df_filtrado[df_filtrado["producto"] == producto_analisis].copy()
     else:
         df_temporal = df_filtrado.copy()
 
-    # Aviso si el producto específico quedó fuera del multiselect
-    if producto_analisis != "Todos" and producto_analisis not in productos:
-        st.warning(
-            f"⚠️ El producto **{producto_analisis}** no está incluido en el filtro "
-            f"'Producto' (multiselect). Agrégalo arriba para ver sus datos."
-        )
-        df_temporal = df_filtrado.copy()  # fallback a todos los filtrados
-
     # ── KPIs ──────────────────────────────────────────────────────────────────
-    st.markdown('<div class="section-header"><div class="dot"></div><div class="section-title">Indicadores clave</div></div>',
-                unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-header"><div class="dot"></div>'
+        '<div class="section-title">Indicadores clave</div></div>',
+        unsafe_allow_html=True
+    )
 
-    producto_top = (df_filtrado.groupby("producto")["cantidad_predicha"].sum().idxmax()
-                    if not df_filtrado.empty else "—")
+    producto_top = (
+        df_filtrado.groupby("producto")["cantidad_predicha"].sum().idxmax()
+        if not df_filtrado.empty else "—"
+    )
+    total_pred = int(df_filtrado["cantidad_predicha"].sum()) if not df_filtrado.empty else 0
+    prom_pred  = round(df_filtrado["cantidad_predicha"].mean(), 2) if not df_filtrado.empty else 0
 
     k1, k2, k3, k4 = st.columns(4)
     with k1:
         st.markdown(f'<div class="kpi-card"><div class="kpi-label">Total registros</div>'
-                    f'<div class="kpi-value accent">{len(df_filtrado):,}</div></div>', unsafe_allow_html=True)
+                    f'<div class="kpi-value accent">{len(df_filtrado):,}</div></div>',
+                    unsafe_allow_html=True)
     with k2:
         st.markdown(f'<div class="kpi-card"><div class="kpi-label">Cantidad predicha total</div>'
-                    f'<div class="kpi-value">{int(df_filtrado["cantidad_predicha"].sum()):,}</div></div>', unsafe_allow_html=True)
+                    f'<div class="kpi-value">{total_pred:,}</div></div>',
+                    unsafe_allow_html=True)
     with k3:
-        prom = round(df_filtrado["cantidad_predicha"].mean(), 2) if not df_filtrado.empty else 0
         st.markdown(f'<div class="kpi-card"><div class="kpi-label">Promedio por registro</div>'
-                    f'<div class="kpi-value success">{prom}</div></div>', unsafe_allow_html=True)
+                    f'<div class="kpi-value success">{prom_pred}</div></div>',
+                    unsafe_allow_html=True)
     with k4:
         st.markdown(f'<div class="kpi-card"><div class="kpi-label">Producto más demandado</div>'
                     f'<div class="kpi-value purple" style="font-size:1.15rem;padding-top:0.3rem;">'
-                    f'{producto_top}</div></div>', unsafe_allow_html=True)
+                    f'{producto_top}</div></div>',
+                    unsafe_allow_html=True)
 
     # ── Gráfico ───────────────────────────────────────────────────────────────
-    st.markdown(f'<div class="section-header"><div class="dot"></div>'
-                f'<div class="section-title">{tipo_analisis}</div></div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="section-header"><div class="dot"></div>'
+        f'<div class="section-title">{tipo_analisis}</div></div>',
+        unsafe_allow_html=True
+    )
 
     fig = None
 
+    # Demanda Temporal: usa df_temporal (puede ser 1 producto o todos)
     if tipo_analisis == "Demanda Temporal":
         if tipo_tiempo == "Día":
             t = df_temporal.groupby("dia")["cantidad_predicha"].sum().reset_index()
@@ -176,38 +206,39 @@ def show_dashboard():
                          text_auto=True, color_discrete_sequence=[ACCENT])
         elif tipo_tiempo == "Semana":
             t = df_temporal.groupby("semana")["cantidad_predicha"].sum().reset_index()
-            fig = px.line(t, x="semana", y="cantidad_predicha", markers=True,
-                          color_discrete_sequence=[ACCENT])
+            fig = px.line(t, x="semana", y="cantidad_predicha",
+                          markers=True, color_discrete_sequence=[ACCENT])
         elif tipo_tiempo == "Mes":
             t = df_temporal.groupby("mes_nombre")["cantidad_predicha"].sum().reset_index()
             t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
             fig = px.line(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
                           markers=True, color_discrete_sequence=[ACCENT])
-        else:
+        else:  # Hora
             t = df_temporal.groupby("hora")["cantidad_predicha"].sum().reset_index()
-            fig = px.line(t, x="hora", y="cantidad_predicha", markers=True,
-                          color_discrete_sequence=[ACCENT])
+            fig = px.line(t, x="hora", y="cantidad_predicha",
+                          markers=True, color_discrete_sequence=[ACCENT])
 
+    # Comparativos: siempre usan df_filtrado (todos los productos del multiselect)
     elif tipo_analisis == "Producto vs Tiempo":
-        t = df_temporal.groupby(["producto","mes_nombre"])["cantidad_predicha"].sum().reset_index()
+        t = df_filtrado.groupby(["producto", "mes_nombre"])["cantidad_predicha"].sum().reset_index()
         t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
         fig = px.bar(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
                      color="producto", barmode="group", color_discrete_sequence=COLOR_SEQ)
 
     elif tipo_analisis == "Promoción vs Tiempo":
-        t = df_temporal.groupby(["tipo_promocion","mes_nombre"])["cantidad_predicha"].mean().reset_index()
+        t = df_filtrado.groupby(["tipo_promocion", "mes_nombre"])["cantidad_predicha"].mean().reset_index()
         t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
         fig = px.line(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
                       color="tipo_promocion", markers=True, color_discrete_sequence=COLOR_SEQ)
 
     elif tipo_analisis == "Clima vs Tiempo":
-        t = df_temporal.groupby(["clima","mes_nombre"])["cantidad_predicha"].mean().reset_index()
+        t = df_filtrado.groupby(["clima", "mes_nombre"])["cantidad_predicha"].mean().reset_index()
         t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
         fig = px.line(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
                       color="clima", markers=True, color_discrete_sequence=COLOR_SEQ)
 
     elif tipo_analisis == "Zona vs Tiempo":
-        t = df_temporal.groupby(["tipo_zona","mes_nombre"])["cantidad_predicha"].sum().reset_index()
+        t = df_filtrado.groupby(["tipo_zona", "mes_nombre"])["cantidad_predicha"].sum().reset_index()
         t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
         fig = px.bar(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
                      color="tipo_zona", barmode="group", color_discrete_sequence=COLOR_SEQ)
@@ -217,6 +248,9 @@ def show_dashboard():
         st.plotly_chart(fig, use_container_width=True)
 
     # ── Tabla ─────────────────────────────────────────────────────────────────
-    st.markdown('<div class="section-header"><div class="dot"></div>'
-                '<div class="section-title">Datos analizados</div></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-header"><div class="dot"></div>'
+        '<div class="section-title">Datos analizados</div></div>',
+        unsafe_allow_html=True
+    )
     st.dataframe(df_filtrado, use_container_width=True, height=300)
