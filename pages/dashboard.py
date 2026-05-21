@@ -17,7 +17,7 @@ DASHBOARD_CSS = """
     .section-header .dot { width: 8px; height: 8px; border-radius: 50%; background: #4f8eff; flex-shrink: 0; }
     .section-title { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; color: #e8eaf0; }
     .filter-title { font-family: 'Syne', sans-serif; font-size: 0.8rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
-    div[data-baseweb="select"] > div { background: #20243a !important; border-color: rgba(255,255,255,0.1) !important; border-radius: 8px !important; }
+    div[data-baseweb="select"] > div { background: #e8eaf0  !important; border-color: rgba(255,255,255,0.1) !important; border-radius: 8px !important; }
     div[data-baseweb="tag"] { background: rgba(79,142,255,0.2) !important; color: #4f8eff !important; }
 </style>
 """
