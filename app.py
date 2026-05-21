@@ -18,7 +18,7 @@ st.markdown("""
     header { visibility: hidden; }
 
     :root {
-        --bg:      #283D70;
+        --bg:      #000000;
         --surface: #161920;
         --card:    #1c1f2b;
         --accent:  #4f8eff;
