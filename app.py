@@ -18,13 +18,13 @@ st.markdown("""
     header { visibility: hidden; }
 
     :root {
-        --bg:      #000000;
+        --bg:      #0d0f14;
         --surface: #161920;
         --card:    #1c1f2b;
         --accent:  #4f8eff;
         --accent2: #a78bfa;
         --success: #34d399;
-        --text:    #e8eaf0;
+        --text:    #FFFCFC;
         --muted:   #6b7280;
         --border:  rgba(255,255,255,0.07);
     }
