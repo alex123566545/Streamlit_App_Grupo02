@@ -321,44 +321,6 @@ def show_prediccion():
             # Clima
             clima = st.selectbox("🌤️ Clima", climas_df["clima"].unique())
 
-            # ── Ajuste de elasticidad ──────────────────────
-            st.markdown("---")
-            st.markdown("**⚡ Ajuste por elasticidad-precio**")
-            usar_elasticidad = st.toggle(
-                "Activar corrección de demanda por precio",
-                value=True,
-                help=(
-                    "El modelo Random Forest puede no capturar bien que a mayor precio "
-                    "la demanda baja. Activando esto se aplica un ajuste matemático "
-                    "post-predicción usando la fórmula de elasticidad-precio."
-                ),
-            )
-            if usar_elasticidad:
-                elasticidad = st.slider(
-                    "Coeficiente de elasticidad",
-                    min_value=-3.0, max_value=-0.1,
-                    value=-1.2, step=0.1,
-                    help=(
-                        "-1.2 = demanda elástica moderada (retail típico). "
-                        "Valores más negativos → mayor sensibilidad al precio. "
-                        "El factor es neutro (= 1) cuando el precio es igual al promedio histórico."
-                    ),
-                )
-                # Mostrar tabla de referencia compacta
-                refs = []
-                for delta in [-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3]:
-                    ratio  = 1 + delta
-                    factor = ratio ** elasticidad
-                    refs.append({
-                        "Precio vs promedio": f"{'+'if delta>=0 else ''}{int(delta*100)}%",
-                        "Factor demanda":     f"×{factor:.2f}",
-                        "Efecto":             f"{'▲' if factor>1 else '▼'} {abs(factor-1)*100:.0f}%",
-                    })
-                with st.expander("Ver tabla de factores"):
-                    st.dataframe(pd.DataFrame(refs), hide_index=True, use_container_width=True)
-            else:
-                elasticidad = -1.2  # valor inerte (no se usará)
-
         with col_r:
             predecir = st.button("🔮 Generar Predicción", use_container_width=True)
 
@@ -369,16 +331,12 @@ def show_prediccion():
                     ubicacion_tienda, clima
                 )[features]
 
-                # Predicción cruda del modelo
-                pred_raw = model.predict(data)[0]
-
-                # Aplicar corrección por elasticidad si está activa
-                if usar_elasticidad:
-                    pred_ajustada = aplicar_elasticidad(
-                        pred_raw, precio, float(precio_promedio), elasticidad
-                    )
-                else:
-                    pred_ajustada = pred_raw
+                # Corrección precio-demanda aplicada silenciosamente (ε = -1.2).
+                # El usuario no ve este ajuste; solo ve el resultado final corregido.
+                pred_raw     = model.predict(data)[0]
+                pred_ajustada = aplicar_elasticidad(
+                    pred_raw, precio, float(precio_promedio)
+                )
 
                 pred      = pred_ajustada
                 pred_dia  = max(1, round(pred))
@@ -388,16 +346,6 @@ def show_prediccion():
                 ingreso_dia = round(pred_dia * precio, 2)
                 ingreso_sem = round(pred_sem * precio, 2)
                 ingreso_mes = round(pred_mes * precio, 2)
-
-                # Mostrar si hubo ajuste
-                if usar_elasticidad and abs(pred_raw - pred_ajustada) > 0.5:
-                    factor_aplicado = pred_ajustada / max(pred_raw, 0.001)
-                    direccion = "↓ reducida" if factor_aplicado < 1 else "↑ aumentada"
-                    st.caption(
-                        f"🔧 Predicción base del modelo: **{max(1,round(pred_raw))} uds** "
-                        f"→ {direccion} a **{pred_dia} uds** por elasticidad "
-                        f"(factor ×{factor_aplicado:.2f})"
-                    )
 
                 # ── KPIs ───────────────────────────────────
                 st.markdown("#### 📊 Resultados predictivos")
@@ -466,11 +414,6 @@ def show_prediccion():
 
                 # ── Simulación de precios ──────────────────
                 st.markdown("#### 💹 Simulación de escenarios de precio")
-                if usar_elasticidad:
-                    st.caption(
-                        f"✅ Corrección por elasticidad activa (ε = {elasticidad}). "
-                        "La demanda disminuye cuando el precio supera el promedio histórico."
-                    )
                 sims = []
                 for factor in [0.8, 0.9, 1.0, 1.1, 1.2]:
                     p_sim = round(precio * factor, 2)
@@ -480,11 +423,9 @@ def show_prediccion():
                         ubicacion_tienda, clima
                     )[features]
                     pred_sim_raw = model.predict(d_sim)[0]
-                    # Aplicar elasticidad referenciada siempre al precio_promedio histórico
-                    if usar_elasticidad:
-                        pred_sim_raw = aplicar_elasticidad(
-                            pred_sim_raw, p_sim, float(precio_promedio), elasticidad
-                        )
+                    pred_sim_raw = aplicar_elasticidad(
+                        pred_sim_raw, p_sim, float(precio_promedio)
+                    )
                     pred_sim = max(1, round(pred_sim_raw))
                     sims.append({
                         "Escenario":      f"×{factor:.1f}",
