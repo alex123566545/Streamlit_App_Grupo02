@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import numpy as np
-from datetime import date
+from datetime import date, timedelta
 
 from utils.database import get_connection
 
@@ -22,7 +22,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# CSS personalizado
 st.markdown("""
 <style>
     .main-header {
@@ -36,16 +35,6 @@ st.markdown("""
         color: #555;
         margin-bottom: 1.5rem;
     }
-    .metric-card {
-        background: #f0f4ff;
-        border-radius: 10px;
-        padding: 1rem;
-        border-left: 4px solid #4361ee;
-    }
-    .section-divider {
-        border-top: 2px solid #e0e0e0;
-        margin: 2rem 0;
-    }
     .badge-high { background:#d4edda; color:#155724; padding:4px 10px; border-radius:20px; font-weight:600; }
     .badge-med  { background:#fff3cd; color:#856404; padding:4px 10px; border-radius:20px; font-weight:600; }
     .badge-low  { background:#f8d7da; color:#721c24; padding:4px 10px; border-radius:20px; font-weight:600; }
@@ -54,10 +43,9 @@ st.markdown("""
 
 
 # =========================================================
-# CARGA DE MODELO Y FEATURES (pkl desde Supabase)
+# CARGA DE MODELO Y FEATURES
 # =========================================================
 def _load_pkl(url: str):
-    """Descarga y deserializa un archivo .pkl desde una URL pública."""
     response = requests.get(url, timeout=30)
     response.raise_for_status()
     return pickle.loads(response.content)
@@ -67,42 +55,26 @@ def _load_pkl(url: str):
 def load_assets():
     MODEL_URL    = "https://klbmaoqxfvjsczwrrwkj.supabase.co/storage/v1/object/public/models/model.pkl"
     FEATURES_URL = "https://klbmaoqxfvjsczwrrwkj.supabase.co/storage/v1/object/public/models/features.pkl"
-    model    = _load_pkl(MODEL_URL)
-    features = _load_pkl(FEATURES_URL)
-    return model, features
+    return _load_pkl(MODEL_URL), _load_pkl(FEATURES_URL)
 
 
 # =========================================================
-# CARGA DE DIMENSIONES (gold_dim)
+# CARGA DE DIMENSIONES
 # =========================================================
 @st.cache_data(show_spinner="Cargando catálogos…", ttl=3600)
 def load_dimensions():
     conn = get_connection()
     try:
-        productos  = pd.read_sql(
-            "SELECT DISTINCT producto, categoria_producto FROM gold_dim.dim_producto ORDER BY producto", conn
-        )
-        promociones = pd.read_sql(
-            "SELECT DISTINCT tipo_promocion FROM gold_dim.dim_promocion ORDER BY tipo_promocion", conn
-        )
-        tiendas = pd.read_sql(
-            "SELECT DISTINCT ubicacion_tienda, tipo_zona FROM gold_dim.dim_tienda ORDER BY ubicacion_tienda", conn
-        )
-        climas = pd.read_sql(
-            "SELECT DISTINCT clima FROM gold_dim.dim_clima ORDER BY clima", conn
-        )
-        precios = pd.read_sql(
-            """SELECT producto, ROUND(AVG(precio_unitario),2) AS precio_promedio
-               FROM gold_ml.ventas_dataset GROUP BY producto""", conn
-        )
+        productos   = pd.read_sql("SELECT DISTINCT producto, categoria_producto FROM gold_dim.dim_producto ORDER BY producto", conn)
+        promociones = pd.read_sql("SELECT DISTINCT tipo_promocion FROM gold_dim.dim_promocion ORDER BY tipo_promocion", conn)
+        tiendas     = pd.read_sql("SELECT DISTINCT ubicacion_tienda, tipo_zona FROM gold_dim.dim_tienda ORDER BY ubicacion_tienda", conn)
+        climas      = pd.read_sql("SELECT DISTINCT clima FROM gold_dim.dim_clima ORDER BY clima", conn)
+        precios     = pd.read_sql("SELECT producto, ROUND(AVG(precio_unitario),2) AS precio_promedio FROM gold_ml.ventas_dataset GROUP BY producto", conn)
     finally:
         conn.close()
     return productos, promociones, tiendas, climas, precios
 
 
-# =========================================================
-# CARGA DE HISTÓRICO DE PREDICCIONES
-# =========================================================
 @st.cache_data(show_spinner=False, ttl=3600)
 def load_history():
     conn = get_connection()
@@ -113,12 +85,8 @@ def load_history():
     return df
 
 
-# =========================================================
-# CARGA DE DATASET PARA MÉTRICAS (CRISP-DM)
-# =========================================================
 @st.cache_data(show_spinner=False, ttl=3600)
 def load_ventas_dataset():
-    """Devuelve el dataset de entrenamiento para evaluación del modelo."""
     conn = get_connection()
     try:
         df = pd.read_sql("SELECT * FROM gold_ml.ventas_dataset LIMIT 5000", conn)
@@ -128,8 +96,15 @@ def load_ventas_dataset():
 
 
 # =========================================================
-# FEATURE ENGINEERING  (idéntico al pipeline del modelo)
+# FEATURE ENGINEERING
+# Normaliza a minúsculas igual que clean_text_columns() del pipeline
+# de entrenamiento. Sin esto el OneHotEncoder silencia las variables
+# categóricas (clima, producto, etc.) al no reconocerlas.
 # =========================================================
+def _lower(s: str) -> str:
+    return str(s).strip().lower()
+
+
 def build_features(
     fecha, hora, producto, categoria_producto,
     precio, tipo_promocion, tipo_zona,
@@ -140,106 +115,102 @@ def build_features(
         2 if fecha.month <= 6 else
         3 if fecha.month <= 9 else 4
     )
-    temporada = ["Q1","Q2","Q3","Q4"][trimestre - 1]
-    hora_pico = 1 if (12 <= hora <= 14 or 18 <= hora <= 21) else 0
-
-    # CORRECCIÓN: normalizar a minúsculas igual que clean_text_columns() del pipeline.
-    # Sin esto, el OneHotEncoder recibe "Soleado" pero fue entrenado con "soleado"
-    # → handle_unknown="ignore" pone todos los dummies en 0 → clima no influye.
-    def _lower(s): return str(s).strip().lower()
-
     return pd.DataFrame([{
-        "mes":                 fecha.month,
-        "dia_mes":             fecha.day,
-        "hora":                hora,
-        "precio_unitario":     float(precio),
-        "trimestre":           trimestre,
-        "es_fin_semana":       int(fecha.weekday() >= 5),
-        "hora_pico":           hora_pico,
-        "producto":            _lower(producto),
-        "categoria_producto":  _lower(categoria_producto),
-        "tipo_promocion":      _lower(tipo_promocion),
-        "tipo_zona":           _lower(tipo_zona),
-        "ubicacion_tienda":    _lower(ubicacion_tienda),
-        "clima":               _lower(clima),
-        "producto_promocion":  f"{_lower(producto)}_{_lower(tipo_promocion)}",
-        "temporada":           temporada,
+        "mes":                fecha.month,
+        "dia_mes":            fecha.day,
+        "hora":               hora,
+        "precio_unitario":    float(precio),
+        "trimestre":          trimestre,
+        "es_fin_semana":      int(fecha.weekday() >= 5),
+        "hora_pico":          int(12 <= hora <= 14 or 18 <= hora <= 21),
+        "producto":           _lower(producto),
+        "categoria_producto": _lower(categoria_producto),
+        "tipo_promocion":     _lower(tipo_promocion),
+        "tipo_zona":          _lower(tipo_zona),
+        "ubicacion_tienda":   _lower(ubicacion_tienda),
+        "clima":              _lower(clima),
+        "producto_promocion": f"{_lower(producto)}_{_lower(tipo_promocion)}",
+        "temporada":          ["Q1","Q2","Q3","Q4"][trimestre - 1],
     }])
 
 
 # =========================================================
-# MÉTRICAS DE REGRESIÓN (MAE, RMSE, R²) — sección CRISP-DM
+# PREDICCIÓN MULTI-DÍA
+# En vez de multiplicar la predicción diaria por 7 o 30
+# (lo que asumiría que todos los días son iguales al día elegido),
+# se predice cada día individualmente y se suman los resultados.
+# Así un domingo no infla artificialmente toda la semana,
+# y un cambio de mes/trimestre se refleja correctamente.
 # =========================================================
-def compute_metrics(model, features, ventas_df: pd.DataFrame):
+def predecir_rango(
+    model, features,
+    fecha_inicio: date,
+    n_dias: int,
+    hora: int,
+    producto: str,
+    categoria_producto: str,
+    precio: float,
+    tipo_promocion: str,
+    tipo_zona: str,
+    ubicacion_tienda: str,
+    clima: str,
+    precio_promedio: float,
+) -> tuple[int, list[dict]]:
     """
-    Calcula MAE, RMSE y R² sobre una muestra del dataset real.
-    Incluye comparación contra modelo base (Regresión Lineal).
+    Predice n_dias consecutivos desde fecha_inicio y devuelve
+    (total_unidades, detalle_por_dia).
     """
-    target = "cantidad_vendida"
-    if target not in ventas_df.columns:
-        return None
+    total   = 0.0
+    detalle = []
 
-    # Preparar features disponibles en el dataset
-    disponibles = [c for c in features if c in ventas_df.columns]
-    if len(disponibles) < len(features):
-        return None  # faltan columnas derivadas
+    for i in range(n_dias):
+        f = fecha_inicio + timedelta(days=i)
+        data = build_features(
+            f, hora, producto, categoria_producto,
+            precio, tipo_promocion, tipo_zona,
+            ubicacion_tienda, clima
+        )[features]
 
-    X = ventas_df[disponibles]
-    y = ventas_df[target]
+        pred_raw = model.predict(data)[0]
+        pred_adj = aplicar_elasticidad(pred_raw, precio, precio_promedio)
+        pred_dia = max(1, round(pred_adj))
 
-    try:
-        y_pred_rf = model.predict(X[features])
-    except Exception:
-        return None
+        total += pred_dia
+        detalle.append({
+            "fecha":        f,
+            "dia_semana":   ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"][f.weekday()],
+            "es_finde":     f.weekday() >= 5,
+            "unidades":     pred_dia,
+            "ingreso":      round(pred_dia * precio, 2),
+        })
 
-    mae_rf  = mean_absolute_error(y, y_pred_rf)
-    rmse_rf = np.sqrt(mean_squared_error(y, y_pred_rf))
-    r2_rf   = r2_score(y, y_pred_rf)
-
-    # Baseline: regresión lineal sobre precio_unitario
-    X_base = ventas_df[["precio_unitario"]].values
-    lr = LinearRegression().fit(X_base, y)
-    y_pred_base = lr.predict(X_base)
-    mae_base  = mean_absolute_error(y, y_pred_base)
-    rmse_base = np.sqrt(mean_squared_error(y, y_pred_base))
-    r2_base   = r2_score(y, y_pred_base)
-
-    return {
-        "RF":   {"MAE": mae_rf,   "RMSE": rmse_rf,   "R2": r2_rf},
-        "Base": {"MAE": mae_base, "RMSE": rmse_base, "R2": r2_base},
-    }
+    return max(1, round(total)), detalle
 
 
 # =========================================================
-# AJUSTE POR ELASTICIDAD PRECIO
+# AJUSTE POR ELASTICIDAD-PRECIO (silencioso)
+# Corrige que el Random Forest no aprende bien la relación
+# precio alto → demanda baja. Se aplica automáticamente
+# sin ningún control visible para el usuario.
+# Fórmula: Q_ajustada = Q_raw × (precio / precio_promedio) ^ ε
+# ε = -1.2: elasticidad moderada, típica en retail de conveniencia.
 # =========================================================
-def aplicar_elasticidad(pred_raw: float, precio: float, precio_promedio: float, elasticidad: float = -1.2) -> float:
-    """
-    Ajusta la predicción del modelo aplicando elasticidad-precio de la demanda.
-
-    Fórmula:
-        Q_ajustada = Q_raw × (P / P_prom) ^ elasticidad
-
-    Donde:
-        - elasticidad < 0  →  precio sube → demanda baja (bienes normales)
-        - elasticidad = -1.2 por defecto (demanda elástica moderada, típica en retail)
-        - El factor es 1.0 cuando precio == precio_promedio (sin distorsión)
-
-    Ejemplos con elasticidad = -1.2:
-        precio = precio_prom × 1.20  →  factor ≈ 0.77  (demanda baja ~23 %)
-        precio = precio_prom × 0.80  →  factor ≈ 1.27  (demanda sube ~27 %)
-    """
+def aplicar_elasticidad(
+    pred_raw: float,
+    precio: float,
+    precio_promedio: float,
+    elasticidad: float = -1.2,
+) -> float:
     if precio_promedio <= 0:
         return pred_raw
-    ratio  = precio / precio_promedio
-    factor = ratio ** elasticidad          # siempre positivo, < 1 si precio > promedio
+    factor = (precio / precio_promedio) ** elasticidad
     return max(1.0, pred_raw * factor)
 
 
 # =========================================================
-# NIVEL DE DEMANDA (helper)
+# NIVEL DE DEMANDA
 # =========================================================
-def demanda_badge(pred_dia: int) -> str:
+def demanda_badge(pred_dia: int):
     if pred_dia < 15:
         return "🔴 Demanda Baja", "low"
     elif pred_dia < 35:
@@ -249,24 +220,54 @@ def demanda_badge(pred_dia: int) -> str:
 
 
 # =========================================================
+# MÉTRICAS CRISP-DM
+# =========================================================
+def compute_metrics(model, features, ventas_df: pd.DataFrame):
+    target = "cantidad_vendida"
+    if target not in ventas_df.columns:
+        return None
+    disponibles = [c for c in features if c in ventas_df.columns]
+    if len(disponibles) < len(features):
+        return None
+    y = ventas_df[target]
+    try:
+        y_pred_rf = model.predict(ventas_df[features])
+    except Exception:
+        return None
+
+    mae_rf  = mean_absolute_error(y, y_pred_rf)
+    rmse_rf = np.sqrt(mean_squared_error(y, y_pred_rf))
+    r2_rf   = r2_score(y, y_pred_rf)
+
+    X_base      = ventas_df[["precio_unitario"]].values
+    lr          = LinearRegression().fit(X_base, y)
+    y_pred_base = lr.predict(X_base)
+    mae_base    = mean_absolute_error(y, y_pred_base)
+    rmse_base   = np.sqrt(mean_squared_error(y, y_pred_base))
+    r2_base     = r2_score(y, y_pred_base)
+
+    return {
+        "RF":   {"MAE": mae_rf,   "RMSE": rmse_rf,   "R2": r2_rf},
+        "Base": {"MAE": mae_base, "RMSE": rmse_base, "R2": r2_base},
+    }
+
+
+# =========================================================
 # UI PRINCIPAL
 # =========================================================
 def show_prediccion():
 
-    # ── Encabezado ──────────────────────────────────────────
     st.markdown(
         '<p class="main-header">🏪 Sistema de Inteligencia Comercial Predictiva</p>'
         '<p class="sub-header">Predicción de demanda · Tiendas de conveniencia en Perú · Modelo: Random Forest Regressor</p>',
         unsafe_allow_html=True,
     )
 
-    # ── Carga de recursos ───────────────────────────────────
     with st.spinner("Iniciando recursos…"):
         model, features = load_assets()
         productos_df, promociones_df, tiendas_df, climas_df, precios_df = load_dimensions()
         historico_df = load_history()
 
-    # ── Tabs principales ────────────────────────────────────
     tab_pred, tab_metricas, tab_hist = st.tabs([
         "📊 Predicción de Demanda",
         "📐 Métricas del Modelo (CRISP-DM)",
@@ -274,42 +275,42 @@ def show_prediccion():
     ])
 
     # ═══════════════════════════════════════════════════════
-    # TAB 1: PREDICCIÓN
+    # TAB 1 — PREDICCIÓN
     # ═══════════════════════════════════════════════════════
     with tab_pred:
 
         st.subheader("⚙️ Parámetros de la transacción")
-
         col_l, col_r = st.columns([1, 2])
 
         with col_l:
-            fecha = st.date_input("📅 Fecha", value=date.today())
-            hora  = st.slider("🕐 Hora del día", 0, 23, 12)
+            fecha = st.date_input("📅 Fecha de inicio", value=date.today())
 
-            # Producto
+            # La columna "hora" en la BD es de tipo TIME (HH:MM:SS).
+            # El modelo fue entrenado con hora = 0 por un bug de parseo ya corregido
+            # en el pipeline. Hasta que se reentrene, el slider no genera diferencias
+            # visibles. Se fija en 12 (mediodía) y se oculta al usuario.
+            hora = 12
+
             producto = st.selectbox("🛒 Producto", productos_df["producto"].unique())
             categoria_producto = productos_df.loc[
                 productos_df["producto"] == producto, "categoria_producto"
             ].values[0]
             st.caption(f"Categoría: **{categoria_producto}**")
 
-            # Precio
-            precio_promedio = precios_df.loc[
+            precio_promedio = float(precios_df.loc[
                 precios_df["producto"] == producto, "precio_promedio"
-            ].values[0]
+            ].values[0])
             st.caption(f"💰 Precio histórico promedio: S/ {precio_promedio}")
             precio = st.slider(
                 "💲 Precio unitario (S/)",
                 min_value=1.0, max_value=30.0,
-                value=float(precio_promedio), step=0.10,
+                value=precio_promedio, step=0.10,
             )
 
-            # Promoción
             tipo_promocion = st.selectbox(
                 "🏷️ Tipo de promoción", promociones_df["tipo_promocion"].unique()
             )
 
-            # Tienda
             ubicacion_tienda = st.selectbox(
                 "📍 Ubicación de tienda", tiendas_df["ubicacion_tienda"].unique()
             )
@@ -318,74 +319,80 @@ def show_prediccion():
             ].values[0]
             st.caption(f"Zona: **{tipo_zona}**")
 
-            # Clima
             clima = st.selectbox("🌤️ Clima", climas_df["clima"].unique())
 
         with col_r:
             predecir = st.button("🔮 Generar Predicción", use_container_width=True)
 
             if predecir:
-                data = build_features(
+
+                # ── Predicción diaria (solo el día elegido) ──────────
+                data_dia = build_features(
                     fecha, hora, producto, categoria_producto,
                     precio, tipo_promocion, tipo_zona,
                     ubicacion_tienda, clima
                 )[features]
+                pred_raw = model.predict(data_dia)[0]
+                pred_dia = max(1, round(aplicar_elasticidad(pred_raw, precio, precio_promedio)))
 
-                # Corrección precio-demanda aplicada silenciosamente (ε = -1.2).
-                # El usuario no ve este ajuste; solo ve el resultado final corregido.
-                pred_raw     = model.predict(data)[0]
-                pred_ajustada = aplicar_elasticidad(
-                    pred_raw, precio, float(precio_promedio)
+                # ── Predicción semanal (7 días desde la fecha elegida) ──
+                # Cada día usa su propio es_fin_semana, mes, trimestre, etc.
+                # Un domingo no infla los otros 6 días.
+                pred_sem, detalle_sem = predecir_rango(
+                    model, features, fecha, 7,
+                    hora, producto, categoria_producto,
+                    precio, tipo_promocion, tipo_zona,
+                    ubicacion_tienda, clima, precio_promedio,
                 )
 
-                pred      = pred_ajustada
-                pred_dia  = max(1, round(pred))
-                pred_sem  = round(pred * 7)
-                pred_mes  = round(pred * 30)
+                # ── Predicción mensual (30 días desde la fecha elegida) ──
+                # Si el rango cruza de un mes a otro, cada día usa su mes correcto.
+                pred_mes, detalle_mes = predecir_rango(
+                    model, features, fecha, 30,
+                    hora, producto, categoria_producto,
+                    precio, tipo_promocion, tipo_zona,
+                    ubicacion_tienda, clima, precio_promedio,
+                )
 
                 ingreso_dia = round(pred_dia * precio, 2)
                 ingreso_sem = round(pred_sem * precio, 2)
                 ingreso_mes = round(pred_mes * precio, 2)
 
-                # ── KPIs ───────────────────────────────────
+                # ── KPIs ─────────────────────────────────────────────
                 st.markdown("#### 📊 Resultados predictivos")
                 c1, c2, c3 = st.columns(3)
-                c1.metric("Predicción diaria",   f"{pred_dia} uds")
-                c2.metric("Predicción semanal",  f"{pred_sem} uds")
-                c3.metric("Predicción mensual",  f"{pred_mes} uds")
+                c1.metric("Predicción diaria",  f"{pred_dia} uds")
+                c2.metric("Predicción semanal", f"{pred_sem} uds")
+                c3.metric("Predicción mensual", f"{pred_mes} uds")
+                c1.metric("Ingreso diario",     f"S/ {ingreso_dia}")
+                c2.metric("Ingreso semanal",    f"S/ {ingreso_sem}")
+                c3.metric("Ingreso mensual",    f"S/ {ingreso_mes}")
 
-                c1.metric("Ingreso diario",   f"S/ {ingreso_dia}")
-                c2.metric("Ingreso semanal",  f"S/ {ingreso_sem}")
-                c3.metric("Ingreso mensual",  f"S/ {ingreso_mes}")
-
-                # ── Nivel de demanda ───────────────────────
+                # ── Nivel de demanda ──────────────────────────────────
                 label, nivel = demanda_badge(pred_dia)
                 st.markdown(
                     f'**Nivel de demanda:** <span class="badge-{nivel}">{label}</span>',
                     unsafe_allow_html=True,
                 )
 
-                # ── Factores detectados (variables independientes) ──
+                # ── Factores detectados ───────────────────────────────
                 st.markdown("#### 🧠 Factores detectados")
                 factores = []
-                if tipo_promocion.lower() not in ("ninguno", "none", "sin promoción"):
+                if _lower(tipo_promocion) not in ("ninguno", "none", "sin promoción"):
                     factores.append("✔ Promoción activa")
                 if 12 <= hora <= 14 or 18 <= hora <= 21:
                     factores.append("✔ Hora pico")
                 if tipo_zona == "Comercial":
                     factores.append("✔ Zona comercial")
-                if clima == "Soleado":
+                if _lower(clima) == "soleado":
                     factores.append("✔ Clima favorable")
                 if fecha.weekday() >= 5:
                     factores.append("✔ Fin de semana")
                 if precio < precio_promedio:
-                    factores.append("✔ Precio competitivo (por debajo del promedio histórico)")
-                if factores:
-                    st.info("  ·  ".join(factores))
-                else:
-                    st.info("No se detectaron factores favorables adicionales.")
+                    factores.append("✔ Precio competitivo")
+                st.info("  ·  ".join(factores) if factores else "No se detectaron factores favorables adicionales.")
 
-                # ── Proyección temporal ────────────────────
+                # ── Proyección temporal ───────────────────────────────
                 st.markdown("#### 📅 Proyección temporal (unidades)")
                 proy_df = pd.DataFrame({
                     "Periodo":  ["Día", "Semana", "Mes"],
@@ -394,25 +401,52 @@ def show_prediccion():
                 fig_proy = px.bar(
                     proy_df, x="Periodo", y="Cantidad", text_auto=True,
                     color="Periodo",
-                    color_discrete_sequence=["#4361ee","#3a0ca3","#7209b7"],
+                    color_discrete_sequence=["#4361ee", "#3a0ca3", "#7209b7"],
                 )
                 fig_proy.update_layout(showlegend=False, height=300)
                 st.plotly_chart(fig_proy, use_container_width=True)
 
-                # ── Comparación histórica ──────────────────
+                # ── Detalle día a día (semanal) ───────────────────────
+                st.markdown("#### 🗓️ Detalle día a día — próximos 7 días")
+                st.caption(
+                    "Cada día se predice de forma independiente con su propio contexto "
+                    "(fin de semana, mes, trimestre). Un domingo no infla el resto de la semana."
+                )
+                det_df = pd.DataFrame(detalle_sem)
+                det_df["fecha"] = det_df["fecha"].astype(str)
+                det_df.columns = ["Fecha", "Día", "¿Finde?", "Unidades", "Ingreso (S/)"]
+                det_df["¿Finde?"] = det_df["¿Finde?"].map({True: "✅", False: "—"})
+
+                # Colorear filas de fin de semana
+                st.dataframe(
+                    det_df,
+                    hide_index=True,
+                    use_container_width=True,
+                )
+
+                fig_det = px.bar(
+                    det_df, x="Fecha", y="Unidades",
+                    color="¿Finde?",
+                    color_discrete_map={"✅": "#7209b7", "—": "#4361ee"},
+                    text_auto=True,
+                    title="Unidades por día (morado = fin de semana)",
+                )
+                fig_det.update_layout(height=320, showlegend=False)
+                st.plotly_chart(fig_det, use_container_width=True)
+
+                # ── Comparación histórica ─────────────────────────────
                 st.markdown("#### 📈 Comparación con histórico")
-                hist_prod = historico_df[historico_df["producto"] == producto]
+                hist_prod = historico_df[historico_df["producto"] == _lower(producto)]
                 if not hist_prod.empty:
                     prom_hist = round(hist_prod["cantidad_predicha"].mean(), 2)
                     variacion = round(((pred_dia - prom_hist) / max(prom_hist, 1)) * 100, 2)
                     h1, h2 = st.columns(2)
-                    h1.metric("Promedio histórico", prom_hist)
-                    h2.metric("Variación esperada", f"{variacion}%",
-                              delta=f"{variacion}%")
+                    h1.metric("Promedio histórico diario", prom_hist)
+                    h2.metric("Variación esperada", f"{variacion}%", delta=f"{variacion}%")
                 else:
                     st.caption("Sin datos históricos para este producto.")
 
-                # ── Simulación de precios ──────────────────
+                # ── Simulación de precios ─────────────────────────────
                 st.markdown("#### 💹 Simulación de escenarios de precio")
                 sims = []
                 for factor in [0.8, 0.9, 1.0, 1.1, 1.2]:
@@ -422,16 +456,14 @@ def show_prediccion():
                         p_sim, tipo_promocion, tipo_zona,
                         ubicacion_tienda, clima
                     )[features]
-                    pred_sim_raw = model.predict(d_sim)[0]
-                    pred_sim_raw = aplicar_elasticidad(
-                        pred_sim_raw, p_sim, float(precio_promedio)
-                    )
-                    pred_sim = max(1, round(pred_sim_raw))
+                    pred_sim = max(1, round(aplicar_elasticidad(
+                        model.predict(d_sim)[0], p_sim, precio_promedio
+                    )))
                     sims.append({
-                        "Escenario":      f"×{factor:.1f}",
-                        "Precio (S/)":    p_sim,
-                        "Demanda (uds)":  pred_sim,
-                        "Ingreso (S/)":   round(pred_sim * p_sim, 2),
+                        "Escenario":     f"×{factor:.1f}",
+                        "Precio (S/)":   p_sim,
+                        "Demanda (uds)": pred_sim,
+                        "Ingreso (S/)":  round(pred_sim * p_sim, 2),
                     })
                 sim_df = pd.DataFrame(sims)
                 st.dataframe(sim_df, use_container_width=True, hide_index=True)
@@ -444,7 +476,7 @@ def show_prediccion():
                 fig_sim.update_layout(height=300)
                 st.plotly_chart(fig_sim, use_container_width=True)
 
-                # ── Recomendación comercial ────────────────
+                # ── Recomendación comercial ───────────────────────────
                 st.markdown("#### 💡 Recomendación comercial")
                 mejor = sim_df.loc[sim_df["Ingreso (S/)"].idxmax()]
                 st.success(
@@ -453,7 +485,7 @@ def show_prediccion():
                     f"**Ingreso estimado:** S/ {mejor['Ingreso (S/)']}"
                 )
 
-                # ── Importancia de variables ───────────────
+                # ── Importancia de variables ──────────────────────────
                 st.markdown("#### ⚙️ Variables más influyentes (Random Forest)")
                 try:
                     importancias = model.named_steps["model"].feature_importances_
@@ -473,11 +505,10 @@ def show_prediccion():
                     st.caption(f"Importancia no disponible: {e}")
 
     # ═══════════════════════════════════════════════════════
-    # TAB 2: MÉTRICAS CRISP-DM (MAE, RMSE, R²) + BASELINE
+    # TAB 2 — MÉTRICAS CRISP-DM
     # ═══════════════════════════════════════════════════════
     with tab_metricas:
         st.subheader("📐 Evaluación del modelo — Metodología CRISP-DM")
-
         st.markdown("""
         El proyecto sigue la metodología **CRISP-DM** para el desarrollo del modelo predictivo.
         A continuación se comparan las métricas de regresión del **Random Forest Regressor**
@@ -493,20 +524,17 @@ def show_prediccion():
                 st.warning(f"No se pudo conectar al dataset de ventas: {e}")
 
         if metricas:
-            rf   = metricas["RF"]
-            base = metricas["Base"]
-
+            rf, base = metricas["RF"], metricas["Base"]
             st.markdown("##### Comparación: Random Forest vs Baseline (Regresión Lineal)")
             m1, m2, m3 = st.columns(3)
-            m1.metric("MAE  — RF",   f"{rf['MAE']:.3f}",  delta=f"{rf['MAE']-base['MAE']:.3f} vs baseline", delta_color="inverse")
-            m2.metric("RMSE — RF",   f"{rf['RMSE']:.3f}", delta=f"{rf['RMSE']-base['RMSE']:.3f} vs baseline", delta_color="inverse")
-            m3.metric("R²   — RF",   f"{rf['R2']:.3f}",   delta=f"{rf['R2']-base['R2']:.3f} vs baseline")
+            m1.metric("MAE  — RF",  f"{rf['MAE']:.3f}",  delta=f"{rf['MAE']-base['MAE']:.3f} vs baseline",   delta_color="inverse")
+            m2.metric("RMSE — RF",  f"{rf['RMSE']:.3f}", delta=f"{rf['RMSE']-base['RMSE']:.3f} vs baseline", delta_color="inverse")
+            m3.metric("R²   — RF",  f"{rf['R2']:.3f}",   delta=f"{rf['R2']-base['R2']:.3f} vs baseline")
 
-            # Gráfico comparativo
             comp_df = pd.DataFrame({
-                "Métrica": ["MAE", "RMSE", "R²"],
-                "Random Forest": [rf["MAE"], rf["RMSE"], rf["R2"]],
-                "Baseline (LR)": [base["MAE"], base["RMSE"], base["R2"]],
+                "Métrica":        ["MAE", "RMSE", "R²"],
+                "Random Forest":  [rf["MAE"],   rf["RMSE"],   rf["R2"]],
+                "Baseline (LR)":  [base["MAE"], base["RMSE"], base["R2"]],
             }).melt("Métrica", var_name="Modelo", value_name="Valor")
 
             fig_met = px.bar(
@@ -522,18 +550,14 @@ def show_prediccion():
                 st.markdown("""
                 | Métrica | Descripción |
                 |---------|-------------|
-                | **MAE** (Mean Absolute Error) | Promedio de errores absolutos. Menor es mejor. |
-                | **RMSE** (Root Mean Squared Error) | Raíz del error cuadrático medio. Penaliza errores grandes. |
-                | **R²** | Proporción de variabilidad explicada por el modelo. Más cerca de 1 es mejor. |
+                | **MAE** | Promedio de errores absolutos. Menor es mejor. |
+                | **RMSE** | Raíz del error cuadrático medio. Penaliza errores grandes. |
+                | **R²** | Proporción de variabilidad explicada. Más cerca de 1 es mejor. |
                 """)
         else:
-            st.info(
-                "Las métricas se calcularán cuando el dataset `gold_ml.ventas_dataset` "
-                "contenga la columna `cantidad_vendida` y las features requeridas."
-            )
+            st.info("Las métricas se calcularán cuando el dataset contenga `cantidad_vendida` y las features requeridas.")
 
-        # Variables independientes usadas (documentación)
-        with st.expander("📋 Variables del modelo (según documento de proyecto)"):
+        with st.expander("📋 Variables del modelo"):
             st.markdown("""
             **Variable dependiente:** `cantidad_vendida`
 
@@ -551,7 +575,7 @@ def show_prediccion():
             """)
 
     # ═══════════════════════════════════════════════════════
-    # TAB 3: HISTÓRICO
+    # TAB 3 — HISTÓRICO
     # ═══════════════════════════════════════════════════════
     with tab_hist:
         st.subheader("📋 Histórico de predicciones almacenadas")
@@ -559,19 +583,12 @@ def show_prediccion():
         if historico_df.empty:
             st.info("No hay predicciones almacenadas aún.")
         else:
-            # Filtro por producto
             prods_hist = sorted(historico_df["producto"].unique().tolist())
-            prod_sel = st.multiselect(
-                "Filtrar por producto", prods_hist, default=prods_hist[:5]
-            )
-            df_fil = (
-                historico_df[historico_df["producto"].isin(prod_sel)]
-                if prod_sel else historico_df
-            )
+            prod_sel = st.multiselect("Filtrar por producto", prods_hist, default=prods_hist[:5])
+            df_fil = historico_df[historico_df["producto"].isin(prod_sel)] if prod_sel else historico_df
 
             st.dataframe(df_fil, use_container_width=True, hide_index=True)
 
-            # Distribución de predicciones
             if "cantidad_predicha" in df_fil.columns and not df_fil.empty:
                 fig_hist = px.histogram(
                     df_fil, x="cantidad_predicha", nbins=30,
@@ -581,7 +598,6 @@ def show_prediccion():
                 fig_hist.update_layout(height=320)
                 st.plotly_chart(fig_hist, use_container_width=True)
 
-                # Top productos por demanda promedio
                 top_df = (
                     df_fil.groupby("producto")["cantidad_predicha"]
                     .mean().reset_index()
