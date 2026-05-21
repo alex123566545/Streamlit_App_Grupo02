@@ -1,212 +1,121 @@
 import streamlit as st
-import pandas as pd
-import plotly.express as px
 
-from utils.database import get_connection
-
-# Evita que Streamlit ejecute este archivo como página autónoma.
-# Solo debe ser invocado a través de show_dashboard() desde app.py.
-if "pagina" not in st.session_state:
-    st.stop()
-
-DASHBOARD_CSS = """
-<style>
-    .kpi-card { background: var(--card, #1c1f2b); border: 1px solid var(--border, rgba(255,255,255,0.07)); border-radius: 14px; padding: 1.25rem 1.5rem; transition: all 0.2s ease; }
-    .kpi-card:hover { border-color: rgba(79,142,255,0.25); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.25); }
-    .kpi-label { font-size: 0.75rem; color: var(--muted, #6b7280); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; font-weight: 600; }
-    .kpi-value { font-family: 'Syne', sans-serif; font-size: 1.9rem; font-weight: 800; color: var(--text, #e8eaf0); line-height: 1; }
-    .kpi-value.accent  { color: #4f8eff; }
-    .kpi-value.success { color: #34d399; }
-    .kpi-value.purple  { color: #a78bfa; }
-    .section-header { display: flex; align-items: center; gap: 0.6rem; margin: 2rem 0 1rem; }
-    .section-header .dot { width: 8px; height: 8px; border-radius: 50%; background: #4f8eff; flex-shrink: 0; }
-    .section-title { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; color: #e8eaf0; }
-    .filter-title { font-family: 'Syne', sans-serif; font-size: 0.8rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
-    div[data-baseweb="select"] > div { background: #20243a !important; border-color: rgba(255,255,255,0.1) !important; border-radius: 8px !important; }
-    div[data-baseweb="tag"] { background: rgba(79,142,255,0.2) !important; color: #4f8eff !important; }
-</style>
-"""
-
-PLOTLY_LAYOUT = dict(
-    template="plotly_dark",
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font_family="DM Sans",
-    font_color="#e8eaf0",
-    margin=dict(t=30, b=30, l=10, r=10),
-    legend=dict(bgcolor="rgba(22,25,32,0.8)", bordercolor="rgba(255,255,255,0.07)", borderwidth=1),
+st.set_page_config(
+    page_title="Sistema Predictivo Retail",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
-ACCENT       = "#4f8eff"
-COLOR_SEQ    = ["#4f8eff","#a78bfa","#34d399","#f97316","#fb7185","#fbbf24"]
-ORDEN_DIAS   = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
-ORDEN_MESES  = ["January","February","March","April","May","June","July","August","September","October","November","December"]
 
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
 
-def apply_layout(fig):
-    fig.update_layout(**PLOTLY_LAYOUT)
-    fig.update_xaxes(gridcolor="rgba(255,255,255,0.05)", linecolor="rgba(255,255,255,0.05)")
-    fig.update_yaxes(gridcolor="rgba(255,255,255,0.05)", linecolor="rgba(255,255,255,0.05)")
-    return fig
+    [data-testid="stSidebar"] { display: none !important; }
+    [data-testid="collapsedControl"] { display: none !important; }
+    #MainMenu { visibility: hidden; }
+    footer { visibility: hidden; }
+    header { visibility: hidden; }
 
+    :root {
+        --bg:      #0d0f14;
+        --surface: #161920;
+        --card:    #1c1f2b;
+        --accent:  #4f8eff;
+        --accent2: #a78bfa;
+        --success: #34d399;
+        --text:    #e8eaf0;
+        --muted:   #6b7280;
+        --border:  rgba(255,255,255,0.07);
+    }
+    .stApp { background: var(--bg) !important; font-family: 'DM Sans', sans-serif; color: var(--text); }
+    .block-container { padding-top: 0 !important; padding-left: 2rem !important; padding-right: 2rem !important; max-width: 1400px; }
+    .hero-section { text-align: center; padding: 5rem 2rem 4rem; position: relative; overflow: hidden; }
+    .hero-section::before { content: ''; position: absolute; top: -120px; left: 50%; transform: translateX(-50%); width: 700px; height: 400px; background: radial-gradient(ellipse at center, rgba(79,142,255,0.12) 0%, rgba(167,139,250,0.06) 50%, transparent 70%); pointer-events: none; }
+    .hero-tag { display: inline-block; border: 1px solid rgba(79,142,255,0.3); background: rgba(79,142,255,0.08); color: var(--accent); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.35rem 1rem; border-radius: 20px; margin-bottom: 1.5rem; }
+    .hero-title { font-family: 'Syne', sans-serif; font-size: clamp(2.5rem, 5vw, 4rem); font-weight: 800; line-height: 1.1; letter-spacing: -1.5px; color: var(--text); margin-bottom: 1.25rem; }
+    .hero-title .gradient-text { background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero-subtitle { font-size: 1.05rem; color: var(--muted); max-width: 520px; margin: 0 auto 3rem; line-height: 1.65; font-weight: 300; }
+    .stats-row { display: flex; justify-content: center; gap: 3rem; padding: 2.5rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin: 3rem 0; }
+    .stat-item { text-align: center; }
+    .stat-value { font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800; color: var(--accent); line-height: 1; }
+    .stat-label { font-size: 0.78rem; color: var(--muted); margin-top: 0.35rem; text-transform: uppercase; letter-spacing: 0.08em; }
+    .cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; max-width: 900px; margin: 0 auto; padding: 0 1rem; }
+    .cap-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; transition: all 0.25s ease; }
+    .cap-card:hover { border-color: rgba(79,142,255,0.25); background: #20243a; transform: translateY(-2px); box-shadow: 0 12px 40px rgba(0,0,0,0.3); }
+    .cap-icon { font-size: 1.75rem; margin-bottom: 0.75rem; display: block; }
+    .cap-title { font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 700; color: var(--text); margin-bottom: 0.35rem; }
+    .cap-desc { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+    div[data-testid="stButton"] button { background: var(--accent) !important; color: white !important; border: none !important; border-radius: 10px !important; font-family: 'DM Sans', sans-serif !important; font-weight: 600 !important; transition: opacity 0.2s !important; }
+    div[data-testid="stButton"] button:hover { opacity: 0.85 !important; }
+    div[data-testid="stButton"] button[kind="secondary"] { background: transparent !important; border: 1px solid var(--border) !important; color: var(--muted) !important; }
+    div[data-testid="stButton"] button[kind="secondary"]:hover { color: var(--text) !important; border-color: rgba(255,255,255,0.15) !important; }
+</style>
+""", unsafe_allow_html=True)
 
-def show_dashboard():
+from pages.dashboard import show_dashboard
+from pages.prediccion import show_prediccion
 
-    st.markdown(DASHBOARD_CSS, unsafe_allow_html=True)
+# ── Navegación ───────────────────────────────────────────────────────────────
+if "pagina" not in st.session_state:
+    st.session_state.pagina = "Inicio"
 
+pages = ["Inicio", "Dashboard", "Predicción"]
+icons  = ["⌂", "◫", "⚡"]
+
+col_brand, col_nav, _ = st.columns([2, 5, 1])
+with col_brand:
+    st.markdown(
+        '<div style="font-family:\'Syne\',sans-serif;font-weight:800;font-size:1.2rem;'
+        'color:#e8eaf0;padding:0.6rem 0;">📈 <span style="color:#4f8eff">Retail</span>Predict</div>',
+        unsafe_allow_html=True
+    )
+with col_nav:
+    nav_cols = st.columns(len(pages))
+    for i, (page, icon) in enumerate(zip(pages, icons)):
+        with nav_cols[i]:
+            label = f"{icon} {page}" + (" 🆕" if page == "Predicción" else "")
+            btn_type = "primary" if st.session_state.pagina == page else "secondary"
+            if st.button(label, key=f"nav_{page}", type=btn_type, use_container_width=True):
+                st.session_state.pagina = page
+                st.rerun()
+
+st.markdown("---")
+
+# ── Páginas ──────────────────────────────────────────────────────────────────
+pagina = st.session_state.pagina
+
+if pagina == "Inicio":
     st.markdown("""
-    <div style="margin-bottom:1.5rem;">
-        <div style="font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;color:#e8eaf0;letter-spacing:-0.5px;">
-            Inteligencia Comercial
-        </div>
-        <div style="color:#6b7280;font-size:0.9rem;margin-top:0.25rem;">
-            Análisis predictivo de ventas en tiempo real
-        </div>
+    <div class="hero-section">
+        <div class="hero-tag">✦ Inteligencia Artificial · Retail</div>
+        <div class="hero-title">Predicción inteligente<br><span class="gradient-text">para tu negocio</span></div>
+        <div class="hero-subtitle">Analiza demanda, anticipa ventas y toma decisiones basadas en datos con modelos de IA en tiempo real.</div>
+    </div>
+    <div class="stats-row">
+        <div class="stat-item"><div class="stat-value">94%</div><div class="stat-label">Precisión</div></div>
+        <div class="stat-item"><div class="stat-value">+12</div><div class="stat-label">Indicadores</div></div>
+        <div class="stat-item"><div class="stat-value">Real</div><div class="stat-label">Tiempo</div></div>
+        <div class="stat-item"><div class="stat-value">5+</div><div class="stat-label">Modelos IA</div></div>
+    </div>
+    <div class="cards-grid">
+        <div class="cap-card"><span class="cap-icon">📊</span><div class="cap-title">Análisis de Demanda</div><div class="cap-desc">Visualiza tendencias y patrones de consumo por producto y zona.</div></div>
+        <div class="cap-card"><span class="cap-icon">🤖</span><div class="cap-title">Predicción de Ventas</div><div class="cap-desc">Modelos de ML entrenados con tu histórico para proyecciones precisas.</div></div>
+        <div class="cap-card"><span class="cap-icon">🌦️</span><div class="cap-title">Impacto del Clima</div><div class="cap-desc">Correlaciona condiciones meteorológicas con comportamiento de compra.</div></div>
+        <div class="cap-card"><span class="cap-icon">🏷️</span><div class="cap-title">Análisis Promocional</div><div class="cap-desc">Mide el ROI real de cada campaña y optimiza descuentos.</div></div>
+        <div class="cap-card"><span class="cap-icon">⏰</span><div class="cap-title">Horas Pico</div><div class="cap-desc">Detecta automáticamente los momentos de mayor tráfico.</div></div>
+        <div class="cap-card"><span class="cap-icon">🏪</span><div class="cap-title">Comparativa de Tiendas</div><div class="cap-desc">Benchmarking entre zonas y sucursales en un solo panel.</div></div>
     </div>
     """, unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    _, c_cta, _ = st.columns([2, 1, 2])
+    with c_cta:
+        if st.button("Ver Dashboard →", use_container_width=True):
+            st.session_state.pagina = "Dashboard"
+            st.rerun()
 
-    # ── Cargar datos ──────────────────────────────────────────────────────────
-    @st.cache_data
-    def load_data():
-        conn = get_connection()
-        df = pd.read_sql("SELECT * FROM gold_ml.ventas_predicha", conn)
-        conn.close()
-        return df
+elif pagina == "Dashboard":
+    show_dashboard()
 
-    df = load_data()
-
-    if df.empty:
-        st.warning("No existen datos en ventas_predicha")
-        st.stop()
-
-    df["fecha"]      = pd.to_datetime(df["fecha"])
-    df["anio"]       = df["fecha"].dt.year
-    df["mes_nombre"] = df["fecha"].dt.strftime("%B")
-    df["semana"]     = df["fecha"].dt.isocalendar().week
-    df["dia"]        = df["fecha"].dt.day_name()
-
-    # ── Filtros inline (sin sidebar) ──────────────────────────────────────────
-    with st.expander("🔎 Filtros y configuración", expanded=True):
-
-        st.markdown('<div class="filter-title">Filtros de datos</div>', unsafe_allow_html=True)
-        col_f1, col_f2, col_f3, col_f4 = st.columns(4)
-
-        with col_f1:
-            productos = st.multiselect("Producto", options=df["producto"].unique(),
-                                       default=df["producto"].unique(), key="f_productos")
-        with col_f2:
-            climas = st.multiselect("Clima", options=df["clima"].unique(),
-                                    default=df["clima"].unique(), key="f_climas")
-        with col_f3:
-            zonas = st.multiselect("Zona", options=df["tipo_zona"].unique(),
-                                   default=df["tipo_zona"].unique(), key="f_zonas")
-        with col_f4:
-            promociones = st.multiselect("Promoción", options=df["tipo_promocion"].unique(),
-                                         default=df["tipo_promocion"].unique(), key="f_promos")
-
-        st.markdown('<div class="filter-title" style="margin-top:1rem;">Configuración de análisis</div>',
-                    unsafe_allow_html=True)
-        col_a1, col_a2, col_a3 = st.columns(3)
-
-        with col_a1:
-            tipo_analisis = st.selectbox("Tipo de análisis",
-                ["Demanda Temporal","Producto vs Tiempo","Promoción vs Tiempo",
-                 "Clima vs Tiempo","Zona vs Tiempo"], key="tipo_analisis")
-        with col_a2:
-            tipo_tiempo = st.selectbox("Agrupar por", ["Día","Semana","Mes","Hora"], key="tipo_tiempo")
-        with col_a3:
-            producto_analisis = st.selectbox("Producto específico",
-                ["Todos"] + list(df["producto"].unique()), key="prod_analisis")
-
-    # ── Aplicar filtros ───────────────────────────────────────────────────────
-    df_filtrado = df[
-        df["producto"].isin(productos) &
-        df["clima"].isin(climas) &
-        df["tipo_zona"].isin(zonas) &
-        df["tipo_promocion"].isin(promociones)
-    ]
-    df_temporal = (
-        df_filtrado[df_filtrado["producto"] == producto_analisis]
-        if producto_analisis != "Todos" else df_filtrado.copy()
-    )
-
-    # ── KPIs ──────────────────────────────────────────────────────────────────
-    st.markdown('<div class="section-header"><div class="dot"></div><div class="section-title">Indicadores clave</div></div>',
-                unsafe_allow_html=True)
-
-    producto_top = (df_filtrado.groupby("producto")["cantidad_predicha"].sum().idxmax()
-                    if not df_filtrado.empty else "—")
-
-    k1, k2, k3, k4 = st.columns(4)
-    with k1:
-        st.markdown(f'<div class="kpi-card"><div class="kpi-label">Total registros</div>'
-                    f'<div class="kpi-value accent">{len(df_filtrado):,}</div></div>', unsafe_allow_html=True)
-    with k2:
-        st.markdown(f'<div class="kpi-card"><div class="kpi-label">Cantidad predicha total</div>'
-                    f'<div class="kpi-value">{int(df_filtrado["cantidad_predicha"].sum()):,}</div></div>', unsafe_allow_html=True)
-    with k3:
-        prom = round(df_filtrado["cantidad_predicha"].mean(), 2) if not df_filtrado.empty else 0
-        st.markdown(f'<div class="kpi-card"><div class="kpi-label">Promedio por registro</div>'
-                    f'<div class="kpi-value success">{prom}</div></div>', unsafe_allow_html=True)
-    with k4:
-        st.markdown(f'<div class="kpi-card"><div class="kpi-label">Producto más demandado</div>'
-                    f'<div class="kpi-value purple" style="font-size:1.15rem;padding-top:0.3rem;">'
-                    f'{producto_top}</div></div>', unsafe_allow_html=True)
-
-    # ── Gráfico ───────────────────────────────────────────────────────────────
-    st.markdown(f'<div class="section-header"><div class="dot"></div>'
-                f'<div class="section-title">{tipo_analisis}</div></div>', unsafe_allow_html=True)
-
-    fig = None
-
-    if tipo_analisis == "Demanda Temporal":
-        if tipo_tiempo == "Día":
-            t = df_temporal.groupby("dia")["cantidad_predicha"].sum().reset_index()
-            t["dia"] = pd.Categorical(t["dia"], categories=ORDEN_DIAS, ordered=True)
-            fig = px.bar(t.sort_values("dia"), x="dia", y="cantidad_predicha",
-                         text_auto=True, color_discrete_sequence=[ACCENT])
-        elif tipo_tiempo == "Semana":
-            t = df_temporal.groupby("semana")["cantidad_predicha"].sum().reset_index()
-            fig = px.line(t, x="semana", y="cantidad_predicha", markers=True,
-                          color_discrete_sequence=[ACCENT])
-        elif tipo_tiempo == "Mes":
-            t = df_temporal.groupby("mes_nombre")["cantidad_predicha"].sum().reset_index()
-            t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
-            fig = px.line(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
-                          markers=True, color_discrete_sequence=[ACCENT])
-        else:
-            t = df_temporal.groupby("hora")["cantidad_predicha"].sum().reset_index()
-            fig = px.line(t, x="hora", y="cantidad_predicha", markers=True,
-                          color_discrete_sequence=[ACCENT])
-
-    elif tipo_analisis == "Producto vs Tiempo":
-        t = df_filtrado.groupby(["producto","mes_nombre"])["cantidad_predicha"].sum().reset_index()
-        t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
-        fig = px.bar(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
-                     color="producto", barmode="group", color_discrete_sequence=COLOR_SEQ)
-
-    elif tipo_analisis == "Promoción vs Tiempo":
-        t = df_filtrado.groupby(["tipo_promocion","mes_nombre"])["cantidad_predicha"].mean().reset_index()
-        t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
-        fig = px.line(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
-                      color="tipo_promocion", markers=True, color_discrete_sequence=COLOR_SEQ)
-
-    elif tipo_analisis == "Clima vs Tiempo":
-        t = df_filtrado.groupby(["clima","mes_nombre"])["cantidad_predicha"].mean().reset_index()
-        t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
-        fig = px.line(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
-                      color="clima", markers=True, color_discrete_sequence=COLOR_SEQ)
-
-    elif tipo_analisis == "Zona vs Tiempo":
-        t = df_filtrado.groupby(["tipo_zona","mes_nombre"])["cantidad_predicha"].sum().reset_index()
-        t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
-        fig = px.bar(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
-                     color="tipo_zona", barmode="group", color_discrete_sequence=COLOR_SEQ)
-
-    if fig:
-        apply_layout(fig)
-        st.plotly_chart(fig, use_container_width=True)
-
-    # ── Tabla ─────────────────────────────────────────────────────────────────
-    st.markdown('<div class="section-header"><div class="dot"></div>'
-                '<div class="section-title">Datos analizados</div></div>', unsafe_allow_html=True)
-    st.dataframe(df_filtrado, use_container_width=True, height=300)
+elif pagina == "Predicción":
+    show_prediccion()
