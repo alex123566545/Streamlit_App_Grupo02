@@ -20,24 +20,20 @@ def load_file(url):
 
 
 # =====================================
-# CARGAR MODELO + ENCODERS + FEATURES
+# CARGAR MODELO + FEATURES
 # =====================================
 @st.cache_resource
 def load_assets():
 
     MODEL_URL = "https://klbmaoqxfvjsczwrrwkj.supabase.co/storage/v1/object/public/models/model.pkl"
 
-    ENCODERS_URL = "https://klbmaoqxfvjsczwrrwkj.supabase.co/storage/v1/object/public/models/encoders.pkl"
-
     FEATURES_URL = "https://klbmaoqxfvjsczwrrwkj.supabase.co/storage/v1/object/public/models/features.pkl"
 
     model = load_file(MODEL_URL)
 
-    encoders = load_file(ENCODERS_URL)
-
     features = load_file(FEATURES_URL)
 
-    return model, encoders, features
+    return model, features
 
 
 # =====================================
@@ -72,9 +68,6 @@ def load_dimensions():
         ORDER BY clima
     """, conn)
 
-    # =====================================
-    # PRECIO PROMEDIO POR PRODUCTO
-    # =====================================
     precios = pd.read_sql("""
         SELECT
             producto,
@@ -123,13 +116,28 @@ def build_features(
     clima
 ):
 
+    temporada = (
+        "Q1" if fecha.month <= 3 else
+        "Q2" if fecha.month <= 6 else
+        "Q3" if fecha.month <= 9 else
+        "Q4"
+    )
+
     df = pd.DataFrame([{
 
         "mes": fecha.month,
 
+        "dia_mes": fecha.day,
+
         "hora": hora,
 
-        "precio_unitario": precio,
+        "precio_unitario": float(precio),
+
+        "trimestre":
+            1 if fecha.month <= 3 else
+            2 if fecha.month <= 6 else
+            3 if fecha.month <= 9 else
+            4,
 
         "es_fin_semana":
             1 if fecha.weekday() >= 5 else 0,
@@ -155,12 +163,7 @@ def build_features(
         "producto_promocion":
             f"{producto}_{tipo_promocion}",
 
-        "temporada": (
-            "Q1" if fecha.month <= 3 else
-            "Q2" if fecha.month <= 6 else
-            "Q3" if fecha.month <= 9 else
-            "Q4"
-        )
+        "temporada": temporada
 
     }])
 
@@ -177,7 +180,7 @@ def show_prediccion():
     # ==============================
     # CARGAR RECURSOS
     # ==============================
-    model, encoders, features = load_assets()
+    model, features = load_assets()
 
     productos_df, promociones_df, tiendas_df, climas_df, precios_df = load_dimensions()
 
@@ -191,7 +194,7 @@ def show_prediccion():
     # ==============================
     # HORA
     # ==============================
-    hora = st.number_input(
+    hora = st.slider(
         "Hora",
         min_value=0,
         max_value=23,
@@ -229,7 +232,7 @@ def show_prediccion():
     precio = st.slider(
         "Precio Unitario",
         min_value=1.0,
-        max_value=20.0,
+        max_value=30.0,
         value=float(precio_promedio),
         step=0.10
     )
@@ -282,23 +285,7 @@ def show_prediccion():
         )
 
         # ==============================
-        # ENCODING
-        # ==============================
-        for col, le in encoders.items():
-
-            if col in data.columns:
-
-                data[col] = data[col].astype(str)
-
-                data[col] = data[col].apply(
-                    lambda x:
-                    le.transform([x])[0]
-                    if x in le.classes_
-                    else -1
-                )
-
-        # ==============================
-        # ORDEN EXACTO DEL ENTRENAMIENTO
+        # ORDEN EXACTO FEATURES
         # ==============================
         data = data[features]
 
@@ -307,7 +294,7 @@ def show_prediccion():
         # ==============================
         pred = model.predict(data)[0]
 
-        pred_dia = round(pred)
+        pred_dia = max(1, round(pred))
 
         pred_semana = round(pred * 7)
 
@@ -379,15 +366,15 @@ def show_prediccion():
             )
 
         # ==============================
-        # NIVEL DE DEMANDA
+        # DEMANDA
         # ==============================
         st.subheader("🚦 Nivel de Demanda")
 
-        if pred_dia < 20:
+        if pred_dia < 15:
 
             st.error("🔴 Demanda Baja")
 
-        elif pred_dia < 50:
+        elif pred_dia < 35:
 
             st.warning("🟡 Demanda Media")
 
@@ -398,11 +385,11 @@ def show_prediccion():
         # ==============================
         # INTERPRETACIÓN
         # ==============================
-        st.subheader("🧠 Interpretación Inteligente")
+        st.subheader("🧠 Factores Detectados")
 
         factores = []
 
-        if tipo_promocion != "Sin promoción":
+        if tipo_promocion != "Ninguno":
             factores.append("✔ Promoción activa")
 
         if 12 <= hora <= 14 or 18 <= hora <= 21:
@@ -418,26 +405,16 @@ def show_prediccion():
             factores.append("✔ Fin de semana")
 
         if precio < precio_promedio:
-            factores.append("✔ Precio menor al promedio histórico")
-
-        elif precio > precio_promedio:
-            factores.append("✔ Precio mayor al promedio histórico")
+            factores.append("✔ Precio competitivo")
 
         if factores:
 
             st.info(
-                "La demanda esperada es influenciada por:\n\n"
-                + "\n".join(factores)
-            )
-
-        else:
-
-            st.warning(
-                "No se detectaron factores fuertes de incremento."
+                "\n".join(factores)
             )
 
         # ==============================
-        # COMPARACIÓN HISTÓRICA
+        # HISTÓRICO
         # ==============================
         st.subheader("📈 Comparación Histórica")
 
@@ -453,7 +430,8 @@ def show_prediccion():
             )
 
             diferencia = round(
-                ((pred_dia - promedio_hist) / promedio_hist) * 100,
+                ((pred_dia - promedio_hist)
+                 / promedio_hist) * 100,
                 2
             )
 
@@ -474,7 +452,7 @@ def show_prediccion():
                 )
 
         # ==============================
-        # PROYECCIÓN TEMPORAL
+        # PROYECCIÓN
         # ==============================
         st.subheader("📅 Proyección Temporal")
 
@@ -506,7 +484,7 @@ def show_prediccion():
         )
 
         # ==============================
-        # SIMULACIÓN DE PRECIOS
+        # SIMULACIÓN PRECIOS
         # ==============================
         st.subheader("💹 Simulación de Precios")
 
@@ -531,19 +509,6 @@ def show_prediccion():
                 ubicacion_tienda,
                 clima
             )
-
-            for col, le in encoders.items():
-
-                if col in data_temp.columns:
-
-                    data_temp[col] = data_temp[col].astype(str)
-
-                    data_temp[col] = data_temp[col].apply(
-                        lambda x:
-                        le.transform([x])[0]
-                        if x in le.classes_
-                        else -1
-                    )
 
             data_temp = data_temp[features]
 
@@ -606,29 +571,47 @@ def show_prediccion():
         # ==============================
         # IMPORTANCIA VARIABLES
         # ==============================
-        st.subheader("⚙ Variables Más Influyentes")
+        try:
 
-        importancia_df = pd.DataFrame({
+            importancias = (
+                model.named_steps["model"]
+                .feature_importances_
+            )
 
-            "Variable": features,
+            feature_names = (
+                model.named_steps["preprocess"]
+                .get_feature_names_out()
+            )
 
-            "Importancia": model.feature_importances_
+            importancia_df = pd.DataFrame({
 
-        })
+                "Variable": feature_names,
 
-        importancia_df = importancia_df.sort_values(
-            by="Importancia",
-            ascending=False
-        )
+                "Importancia": importancias
 
-        fig_importancia = px.bar(
-            importancia_df.head(10),
-            x="Variable",
-            y="Importancia",
-            text_auto=True
-        )
+            })
 
-        st.plotly_chart(
-            fig_importancia,
-            use_container_width=True
-        )
+            importancia_df = importancia_df.sort_values(
+                by="Importancia",
+                ascending=False
+            )
+
+            st.subheader("⚙ Variables Más Influyentes")
+
+            fig_importancia = px.bar(
+                importancia_df.head(10),
+                x="Variable",
+                y="Importancia",
+                text_auto=True
+            )
+
+            st.plotly_chart(
+                fig_importancia,
+                use_container_width=True
+            )
+
+        except Exception as e:
+
+            st.warning(
+                f"No se pudo mostrar importancia: {e}"
+            )
