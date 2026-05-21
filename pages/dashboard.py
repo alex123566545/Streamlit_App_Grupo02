@@ -123,10 +123,21 @@ def show_dashboard():
         df["tipo_zona"].isin(zonas) &
         df["tipo_promocion"].isin(promociones)
     ]
-    df_temporal = (
-        df_filtrado[df_filtrado["producto"] == producto_analisis]
-        if producto_analisis != "Todos" else df_filtrado.copy()
-    )
+
+    # df_temporal: aplica además el filtro de producto específico.
+    # Se usa como fuente de datos en TODOS los tipos de análisis.
+    if producto_analisis != "Todos":
+        df_temporal = df_filtrado[df_filtrado["producto"] == producto_analisis].copy()
+    else:
+        df_temporal = df_filtrado.copy()
+
+    # Aviso si el producto específico quedó fuera del multiselect
+    if producto_analisis != "Todos" and producto_analisis not in productos:
+        st.warning(
+            f"⚠️ El producto **{producto_analisis}** no está incluido en el filtro "
+            f"'Producto' (multiselect). Agrégalo arriba para ver sus datos."
+        )
+        df_temporal = df_filtrado.copy()  # fallback a todos los filtrados
 
     # ── KPIs ──────────────────────────────────────────────────────────────────
     st.markdown('<div class="section-header"><div class="dot"></div><div class="section-title">Indicadores clave</div></div>',
@@ -178,25 +189,25 @@ def show_dashboard():
                           color_discrete_sequence=[ACCENT])
 
     elif tipo_analisis == "Producto vs Tiempo":
-        t = df_filtrado.groupby(["producto","mes_nombre"])["cantidad_predicha"].sum().reset_index()
+        t = df_temporal.groupby(["producto","mes_nombre"])["cantidad_predicha"].sum().reset_index()
         t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
         fig = px.bar(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
                      color="producto", barmode="group", color_discrete_sequence=COLOR_SEQ)
 
     elif tipo_analisis == "Promoción vs Tiempo":
-        t = df_filtrado.groupby(["tipo_promocion","mes_nombre"])["cantidad_predicha"].mean().reset_index()
+        t = df_temporal.groupby(["tipo_promocion","mes_nombre"])["cantidad_predicha"].mean().reset_index()
         t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
         fig = px.line(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
                       color="tipo_promocion", markers=True, color_discrete_sequence=COLOR_SEQ)
 
     elif tipo_analisis == "Clima vs Tiempo":
-        t = df_filtrado.groupby(["clima","mes_nombre"])["cantidad_predicha"].mean().reset_index()
+        t = df_temporal.groupby(["clima","mes_nombre"])["cantidad_predicha"].mean().reset_index()
         t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
         fig = px.line(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
                       color="clima", markers=True, color_discrete_sequence=COLOR_SEQ)
 
     elif tipo_analisis == "Zona vs Tiempo":
-        t = df_filtrado.groupby(["tipo_zona","mes_nombre"])["cantidad_predicha"].sum().reset_index()
+        t = df_temporal.groupby(["tipo_zona","mes_nombre"])["cantidad_predicha"].sum().reset_index()
         t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
         fig = px.bar(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
                      color="tipo_zona", barmode="group", color_discrete_sequence=COLOR_SEQ)
