@@ -53,7 +53,7 @@ def _load_pkl(url: str):
 
 @st.cache_resource(show_spinner="Cargando modelo predictivo…")
 def load_assets():
-    MODEL_URL    = "https://klbmaoqxfvjsczwrrwkj.supabase.co/storage/v1/object/public/models/model.pkl"
+    MODEL_URL    = "https://klbmaoqxfvjsczwrrwkj.supabase.co/storage/v1/object/public/models/model.pl"
     FEATURES_URL = "https://klbmaoqxfvjsczwrrwkj.supabase.co/storage/v1/object/public/models/features.pkl"
     return _load_pkl(MODEL_URL), _load_pkl(FEATURES_URL)
 
