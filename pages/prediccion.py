@@ -270,7 +270,8 @@ def show_prediccion():
 
     tab_pred, tab_metricas, tab_hist = st.tabs([
         "📊 Predicción de Demanda",
-        "📋 Histórico de Predicciones"
+        "📐 Métricas del Modelo (CRISP-DM)",
+        "📋 Histórico de Predicciones",
     ])
 
     # ═══════════════════════════════════════════════════════
