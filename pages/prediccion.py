@@ -13,33 +13,65 @@ from utils.database import get_connection
 
 
 # =========================================================
-# CONFIGURACIÓN DE PÁGINA
+# ESTILOS
 # =========================================================
-st.set_page_config(
-    page_title="Sistema de Inteligencia Comercial Predictiva",
-    page_icon="🏪",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
-
-st.markdown("""
+PREDICCION_CSS = """
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+
     .main-header {
+        font-family: 'Syne', sans-serif;
         font-size: 1.8rem;
-        font-weight: 700;
-        color: #1a1a2e;
+        font-weight: 800;
+        color: #e8eaf0;
         margin-bottom: 0.2rem;
+        letter-spacing: -0.5px;
     }
     .sub-header {
-        font-size: 0.95rem;
-        color: #555;
+        font-size: 0.9rem;
+        color: #b0b8cc;
         margin-bottom: 1.5rem;
     }
-    .badge-high { background:#d4edda; color:#155724; padding:4px 10px; border-radius:20px; font-weight:600; }
-    .badge-med  { background:#fff3cd; color:#856404; padding:4px 10px; border-radius:20px; font-weight:600; }
-    .badge-low  { background:#f8d7da; color:#721c24; padding:4px 10px; border-radius:20px; font-weight:600; }
+
+    /* Badges de demanda */
+    .badge-high { background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3); padding: 4px 12px; border-radius: 20px; font-weight: 600; }
+    .badge-med  { background: rgba(251,191,36,0.15);  color: #fbbf24; border: 1px solid rgba(251,191,36,0.3);  padding: 4px 12px; border-radius: 20px; font-weight: 600; }
+    .badge-low  { background: rgba(251,113,133,0.15); color: #fb7185; border: 1px solid rgba(251,113,133,0.3); padding: 4px 12px; border-radius: 20px; font-weight: 600; }
+
+    /* Cards de segmento */
+    .seg-card {
+        background: #1c1f2b;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 14px;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.2s ease;
+    }
+    .seg-card:hover { border-color: rgba(79,142,255,0.25); transform: translateY(-1px); }
+    .seg-label { font-size: 0.72rem; color: #b0b8cc; text-transform: uppercase; letter-spacing: 0.09em; font-weight: 600; margin-bottom: 0.3rem; }
+    .seg-value { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 800; color: #e8eaf0; line-height: 1; }
+    .seg-sub   { font-size: 0.8rem; color: #8892a4; margin-top: 0.25rem; }
+
+    /* Selectbox oscuro */
+    div[data-baseweb="select"] > div {
+        background: #1c1f2b !important;
+        border-color: rgba(255,255,255,0.12) !important;
+        border-radius: 8px !important;
+        color: #e8eaf0 !important;
+    }
+    div[data-baseweb="select"] > div > div { color: #e8eaf0 !important; }
+    div[data-baseweb="popover"] ul  { background: #1c1f2b !important; border: 1px solid rgba(255,255,255,0.10) !important; }
+    div[data-baseweb="popover"] li  { background: #1c1f2b !important; color: #e8eaf0 !important; }
+    div[data-baseweb="popover"] li:hover { background: #20243a !important; color: #ffffff !important; }
+    div[data-baseweb="tag"] { background: rgba(79,142,255,0.2) !important; color: #7eaaff !important; }
+    div[data-baseweb="tag"] span { color: #7eaaff !important; }
+
+    /* Section header */
+    .sec-header { display: flex; align-items: center; gap: 0.6rem; margin: 1.75rem 0 0.75rem; }
+    .sec-dot { width: 8px; height: 8px; border-radius: 50%; background: #4f8eff; flex-shrink: 0; }
+    .sec-title { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; color: #e8eaf0; }
 </style>
-""", unsafe_allow_html=True)
+"""
 
 
 # =========================================================
@@ -97,9 +129,6 @@ def load_ventas_dataset():
 
 # =========================================================
 # FEATURE ENGINEERING
-# Normaliza a minúsculas igual que clean_text_columns() del pipeline
-# de entrenamiento. Sin esto el OneHotEncoder silencia las variables
-# categóricas (clima, producto, etc.) al no reconocerlas.
 # =========================================================
 def _lower(s: str) -> str:
     return str(s).strip().lower()
@@ -136,11 +165,6 @@ def build_features(
 
 # =========================================================
 # PREDICCIÓN MULTI-DÍA
-# En vez de multiplicar la predicción diaria por 7 o 30
-# (lo que asumiría que todos los días son iguales al día elegido),
-# se predice cada día individualmente y se suman los resultados.
-# Así un domingo no infla artificialmente toda la semana,
-# y un cambio de mes/trimestre se refleja correctamente.
 # =========================================================
 def predecir_rango(
     model, features,
@@ -156,13 +180,8 @@ def predecir_rango(
     clima: str,
     precio_promedio: float,
 ) -> tuple[int, list[dict]]:
-    """
-    Predice n_dias consecutivos desde fecha_inicio y devuelve
-    (total_unidades, detalle_por_dia).
-    """
     total   = 0.0
     detalle = []
-
     for i in range(n_dias):
         f = fecha_inicio + timedelta(days=i)
         data = build_features(
@@ -170,30 +189,22 @@ def predecir_rango(
             precio, tipo_promocion, tipo_zona,
             ubicacion_tienda, clima
         )[features]
-
         pred_raw = model.predict(data)[0]
         pred_adj = aplicar_elasticidad(pred_raw, precio, precio_promedio)
         pred_dia = max(1, round(pred_adj))
-
         total += pred_dia
         detalle.append({
-            "fecha":        f,
-            "dia_semana":   ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"][f.weekday()],
-            "es_finde":     f.weekday() >= 5,
-            "unidades":     pred_dia,
-            "ingreso":      round(pred_dia * precio, 2),
+            "fecha":      f,
+            "dia_semana": ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"][f.weekday()],
+            "es_finde":   f.weekday() >= 5,
+            "unidades":   pred_dia,
+            "ingreso":    round(pred_dia * precio, 2),
         })
-
     return max(1, round(total)), detalle
 
 
 # =========================================================
-# AJUSTE POR ELASTICIDAD-PRECIO (silencioso)
-# Corrige que el Random Forest no aprende bien la relación
-# precio alto → demanda baja. Se aplica automáticamente
-# sin ningún control visible para el usuario.
-# Fórmula: Q_ajustada = Q_raw × (precio / precio_promedio) ^ ε
-# ε = -1.2: elasticidad moderada, típica en retail de conveniencia.
+# ELASTICIDAD-PRECIO
 # =========================================================
 def aplicar_elasticidad(
     pred_raw: float,
@@ -253,13 +264,43 @@ def compute_metrics(model, features, ventas_df: pd.DataFrame):
 
 
 # =========================================================
+# HELPERS DE VISUALIZACIÓN
+# =========================================================
+PLOTLY_DARK = dict(
+    template="plotly_dark",
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font_family="DM Sans",
+    font_color="#e8eaf0",
+    margin=dict(t=40, b=30, l=10, r=10),
+    legend=dict(bgcolor="rgba(22,25,32,0.8)", bordercolor="rgba(255,255,255,0.07)", borderwidth=1),
+)
+COLOR_SEQ = ["#4f8eff", "#a78bfa", "#34d399", "#f97316", "#fb7185", "#fbbf24"]
+
+def dark_fig(fig):
+    fig.update_layout(**PLOTLY_DARK)
+    fig.update_xaxes(gridcolor="rgba(255,255,255,0.05)", linecolor="rgba(255,255,255,0.05)")
+    fig.update_yaxes(gridcolor="rgba(255,255,255,0.05)", linecolor="rgba(255,255,255,0.05)")
+    return fig
+
+def sec(title: str):
+    st.markdown(
+        f'<div class="sec-header"><div class="sec-dot"></div>'
+        f'<div class="sec-title">{title}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+
+# =========================================================
 # UI PRINCIPAL
 # =========================================================
 def show_prediccion():
 
+    st.markdown(PREDICCION_CSS, unsafe_allow_html=True)
+
     st.markdown(
         '<p class="main-header">🏪 Sistema de Inteligencia Comercial Predictiva</p>'
-        '<p class="sub-header">Predicción de demanda · Tiendas de conveniencia en Perú · Modelo: Random Forest Regressor</p>',
+        '<p class="sub-header">Predicción de demanda · Fidelización · Análisis Económico · Modelo: Random Forest Regressor</p>',
         unsafe_allow_html=True,
     )
 
@@ -268,10 +309,12 @@ def show_prediccion():
         productos_df, promociones_df, tiendas_df, climas_df, precios_df = load_dimensions()
         historico_df = load_history()
 
-    tab_pred, tab_metricas, tab_hist = st.tabs([
+    tab_pred, tab_metricas, tab_hist, tab_fidelizacion, tab_economico = st.tabs([
         "📊 Predicción de Demanda",
-        "📐 Métricas del Modelo (CRISP-DM)",
-        "📋 Histórico de Predicciones",
+        "📐 Métricas CRISP-DM",
+        "📋 Histórico",
+        "🏆 Fidelización de Clientes",
+        "💰 Análisis Económico",
     ])
 
     # ═══════════════════════════════════════════════════════
@@ -284,12 +327,7 @@ def show_prediccion():
 
         with col_l:
             fecha = st.date_input("📅 Fecha de inicio", value=date.today())
-
-            # La columna "hora" en la BD es de tipo TIME (HH:MM:SS).
-            # El modelo fue entrenado con hora = 0 por un bug de parseo ya corregido
-            # en el pipeline. Hasta que se reentrene, el slider no genera diferencias
-            # visibles. Se fija en 12 (mediodía) y se oculta al usuario.
-            hora = 12
+            hora  = 12
 
             producto = st.selectbox("🛒 Producto", productos_df["producto"].unique())
             categoria_producto = productos_df.loc[
@@ -307,59 +345,39 @@ def show_prediccion():
                 value=precio_promedio, step=0.10,
             )
 
-            tipo_promocion = st.selectbox(
-                "🏷️ Tipo de promoción", promociones_df["tipo_promocion"].unique()
-            )
-
-            ubicacion_tienda = st.selectbox(
-                "📍 Ubicación de tienda", tiendas_df["ubicacion_tienda"].unique()
-            )
+            tipo_promocion   = st.selectbox("🏷️ Tipo de promoción", promociones_df["tipo_promocion"].unique())
+            ubicacion_tienda = st.selectbox("📍 Ubicación de tienda", tiendas_df["ubicacion_tienda"].unique())
             tipo_zona = tiendas_df.loc[
                 tiendas_df["ubicacion_tienda"] == ubicacion_tienda, "tipo_zona"
             ].values[0]
             st.caption(f"Zona: **{tipo_zona}**")
-
             clima = st.selectbox("🌤️ Clima", climas_df["clima"].unique())
 
         with col_r:
             predecir = st.button("🔮 Generar Predicción", use_container_width=True)
 
             if predecir:
-
-                # ── Predicción diaria (solo el día elegido) ──────────
                 data_dia = build_features(
                     fecha, hora, producto, categoria_producto,
-                    precio, tipo_promocion, tipo_zona,
-                    ubicacion_tienda, clima
+                    precio, tipo_promocion, tipo_zona, ubicacion_tienda, clima
                 )[features]
                 pred_raw = model.predict(data_dia)[0]
                 pred_dia = max(1, round(aplicar_elasticidad(pred_raw, precio, precio_promedio)))
 
-                # ── Predicción semanal (7 días desde la fecha elegida) ──
-                # Cada día usa su propio es_fin_semana, mes, trimestre, etc.
-                # Un domingo no infla los otros 6 días.
                 pred_sem, detalle_sem = predecir_rango(
-                    model, features, fecha, 7,
-                    hora, producto, categoria_producto,
-                    precio, tipo_promocion, tipo_zona,
-                    ubicacion_tienda, clima, precio_promedio,
+                    model, features, fecha, 7, hora, producto, categoria_producto,
+                    precio, tipo_promocion, tipo_zona, ubicacion_tienda, clima, precio_promedio,
                 )
-
-                # ── Predicción mensual (30 días desde la fecha elegida) ──
-                # Si el rango cruza de un mes a otro, cada día usa su mes correcto.
                 pred_mes, detalle_mes = predecir_rango(
-                    model, features, fecha, 30,
-                    hora, producto, categoria_producto,
-                    precio, tipo_promocion, tipo_zona,
-                    ubicacion_tienda, clima, precio_promedio,
+                    model, features, fecha, 30, hora, producto, categoria_producto,
+                    precio, tipo_promocion, tipo_zona, ubicacion_tienda, clima, precio_promedio,
                 )
 
                 ingreso_dia = round(pred_dia * precio, 2)
                 ingreso_sem = round(pred_sem * precio, 2)
                 ingreso_mes = round(pred_mes * precio, 2)
 
-                # ── KPIs ─────────────────────────────────────────────
-                st.markdown("#### 📊 Resultados predictivos")
+                sec("📊 Resultados predictivos")
                 c1, c2, c3 = st.columns(3)
                 c1.metric("Predicción diaria",  f"{pred_dia} uds")
                 c2.metric("Predicción semanal", f"{pred_sem} uds")
@@ -368,15 +386,13 @@ def show_prediccion():
                 c2.metric("Ingreso semanal",    f"S/ {ingreso_sem}")
                 c3.metric("Ingreso mensual",    f"S/ {ingreso_mes}")
 
-                # ── Nivel de demanda ──────────────────────────────────
                 label, nivel = demanda_badge(pred_dia)
                 st.markdown(
                     f'**Nivel de demanda:** <span class="badge-{nivel}">{label}</span>',
                     unsafe_allow_html=True,
                 )
 
-                # ── Factores detectados ───────────────────────────────
-                st.markdown("#### 🧠 Factores detectados")
+                sec("🧠 Factores detectados")
                 factores = []
                 if _lower(tipo_promocion) not in ("ninguno", "none", "sin promoción"):
                     factores.append("✔ Promoción activa")
@@ -392,50 +408,38 @@ def show_prediccion():
                     factores.append("✔ Precio competitivo")
                 st.info("  ·  ".join(factores) if factores else "No se detectaron factores favorables adicionales.")
 
-                # ── Proyección temporal ───────────────────────────────
-                st.markdown("#### 📅 Proyección temporal (unidades)")
+                sec("📅 Proyección temporal (unidades)")
                 proy_df = pd.DataFrame({
                     "Periodo":  ["Día", "Semana", "Mes"],
                     "Cantidad": [pred_dia, pred_sem, pred_mes],
                 })
-                fig_proy = px.bar(
+                fig_proy = dark_fig(px.bar(
                     proy_df, x="Periodo", y="Cantidad", text_auto=True,
                     color="Periodo",
-                    color_discrete_sequence=["#4361ee", "#3a0ca3", "#7209b7"],
-                )
+                    color_discrete_sequence=["#4f8eff", "#a78bfa", "#34d399"],
+                ))
                 fig_proy.update_layout(showlegend=False, height=300)
                 st.plotly_chart(fig_proy, use_container_width=True)
 
-                # ── Detalle día a día (semanal) ───────────────────────
-                st.markdown("#### 🗓️ Detalle día a día — próximos 7 días")
-                st.caption(
-                    "Cada día se predice de forma independiente con su propio contexto "
-                    "(fin de semana, mes, trimestre). Un domingo no infla el resto de la semana."
-                )
+                sec("🗓️ Detalle día a día — próximos 7 días")
+                st.caption("Cada día se predice de forma independiente con su propio contexto.")
                 det_df = pd.DataFrame(detalle_sem)
                 det_df["fecha"] = det_df["fecha"].astype(str)
                 det_df.columns = ["Fecha", "Día", "¿Finde?", "Unidades", "Ingreso (S/)"]
                 det_df["¿Finde?"] = det_df["¿Finde?"].map({True: "✅", False: "—"})
+                st.dataframe(det_df, hide_index=True, use_container_width=True)
 
-                # Colorear filas de fin de semana
-                st.dataframe(
-                    det_df,
-                    hide_index=True,
-                    use_container_width=True,
-                )
-
-                fig_det = px.bar(
+                fig_det = dark_fig(px.bar(
                     det_df, x="Fecha", y="Unidades",
                     color="¿Finde?",
-                    color_discrete_map={"✅": "#7209b7", "—": "#4361ee"},
+                    color_discrete_map={"✅": "#a78bfa", "—": "#4f8eff"},
                     text_auto=True,
                     title="Unidades por día (morado = fin de semana)",
-                )
+                ))
                 fig_det.update_layout(height=320, showlegend=False)
                 st.plotly_chart(fig_det, use_container_width=True)
 
-                # ── Comparación histórica ─────────────────────────────
-                st.markdown("#### 📈 Comparación con histórico")
+                sec("📈 Comparación con histórico")
                 hist_prod = historico_df[historico_df["producto"] == _lower(producto)]
                 if not hist_prod.empty:
                     prom_hist = round(hist_prod["cantidad_predicha"].mean(), 2)
@@ -446,15 +450,13 @@ def show_prediccion():
                 else:
                     st.caption("Sin datos históricos para este producto.")
 
-                # ── Simulación de precios ─────────────────────────────
-                st.markdown("#### 💹 Simulación de escenarios de precio")
+                sec("💹 Simulación de escenarios de precio")
                 sims = []
                 for factor in [0.8, 0.9, 1.0, 1.1, 1.2]:
                     p_sim = round(precio * factor, 2)
                     d_sim = build_features(
                         fecha, hora, producto, categoria_producto,
-                        p_sim, tipo_promocion, tipo_zona,
-                        ubicacion_tienda, clima
+                        p_sim, tipo_promocion, tipo_zona, ubicacion_tienda, clima
                     )[features]
                     pred_sim = max(1, round(aplicar_elasticidad(
                         model.predict(d_sim)[0], p_sim, precio_promedio
@@ -468,16 +470,15 @@ def show_prediccion():
                 sim_df = pd.DataFrame(sims)
                 st.dataframe(sim_df, use_container_width=True, hide_index=True)
 
-                fig_sim = px.line(
+                fig_sim = dark_fig(px.line(
                     sim_df, x="Precio (S/)", y="Ingreso (S/)",
                     markers=True, title="Curva ingreso vs precio",
-                    color_discrete_sequence=["#4361ee"],
-                )
+                    color_discrete_sequence=["#4f8eff"],
+                ))
                 fig_sim.update_layout(height=300)
                 st.plotly_chart(fig_sim, use_container_width=True)
 
-                # ── Recomendación comercial ───────────────────────────
-                st.markdown("#### 💡 Recomendación comercial")
+                sec("💡 Recomendación comercial")
                 mejor = sim_df.loc[sim_df["Ingreso (S/)"].idxmax()]
                 st.success(
                     f"**Precio óptimo sugerido:** S/ {mejor['Precio (S/)']}\n\n"
@@ -485,8 +486,7 @@ def show_prediccion():
                     f"**Ingreso estimado:** S/ {mejor['Ingreso (S/)']}"
                 )
 
-                # ── Importancia de variables ──────────────────────────
-                st.markdown("#### ⚙️ Variables más influyentes (Random Forest)")
+                sec("⚙️ Variables más influyentes (Random Forest)")
                 try:
                     importancias = model.named_steps["model"].feature_importances_
                     feat_names   = model.named_steps["preprocess"].get_feature_names_out()
@@ -495,10 +495,10 @@ def show_prediccion():
                         .sort_values("Importancia", ascending=False)
                         .head(10)
                     )
-                    fig_imp = px.bar(
+                    fig_imp = dark_fig(px.bar(
                         imp_df, x="Variable", y="Importancia", text_auto=True,
                         color="Importancia", color_continuous_scale="Blues",
-                    )
+                    ))
                     fig_imp.update_layout(height=350, coloraxis_showscale=False)
                     st.plotly_chart(fig_imp, use_container_width=True)
                 except Exception as e:
@@ -511,8 +511,8 @@ def show_prediccion():
         st.subheader("📐 Evaluación del modelo — Metodología CRISP-DM")
         st.markdown("""
         El proyecto sigue la metodología **CRISP-DM** para el desarrollo del modelo predictivo.
-        A continuación se comparan las métricas de regresión del **Random Forest Regressor**
-        (modelo principal) frente a la **Regresión Lineal Simple** (modelo base / *baseline*).
+        A continuación se comparan las métricas del **Random Forest Regressor**
+        frente a la **Regresión Lineal Simple** (modelo base / *baseline*).
         """)
 
         with st.spinner("Calculando métricas…"):
@@ -532,17 +532,17 @@ def show_prediccion():
             m3.metric("R²   — RF",  f"{rf['R2']:.3f}",   delta=f"{rf['R2']-base['R2']:.3f} vs baseline")
 
             comp_df = pd.DataFrame({
-                "Métrica":        ["MAE", "RMSE", "R²"],
-                "Random Forest":  [rf["MAE"],   rf["RMSE"],   rf["R2"]],
-                "Baseline (LR)":  [base["MAE"], base["RMSE"], base["R2"]],
+                "Métrica":       ["MAE", "RMSE", "R²"],
+                "Random Forest": [rf["MAE"],   rf["RMSE"],   rf["R2"]],
+                "Baseline (LR)": [base["MAE"], base["RMSE"], base["R2"]],
             }).melt("Métrica", var_name="Modelo", value_name="Valor")
 
-            fig_met = px.bar(
+            fig_met = dark_fig(px.bar(
                 comp_df, x="Métrica", y="Valor", color="Modelo",
                 barmode="group", text_auto=".3f",
-                color_discrete_sequence=["#4361ee", "#adb5bd"],
+                color_discrete_sequence=["#4f8eff", "#6b7280"],
                 title="Comparación de métricas: Random Forest vs Baseline",
-            )
+            ))
             fig_met.update_layout(height=380)
             st.plotly_chart(fig_met, use_container_width=True)
 
@@ -584,17 +584,17 @@ def show_prediccion():
             st.info("No hay predicciones almacenadas aún.")
         else:
             prods_hist = sorted(historico_df["producto"].unique().tolist())
-            prod_sel = st.multiselect("Filtrar por producto", prods_hist, default=prods_hist[:5])
-            df_fil = historico_df[historico_df["producto"].isin(prod_sel)] if prod_sel else historico_df
+            prod_sel   = st.multiselect("Filtrar por producto", prods_hist, default=prods_hist[:5])
+            df_fil     = historico_df[historico_df["producto"].isin(prod_sel)] if prod_sel else historico_df
 
             st.dataframe(df_fil, use_container_width=True, hide_index=True)
 
             if "cantidad_predicha" in df_fil.columns and not df_fil.empty:
-                fig_hist = px.histogram(
+                fig_hist = dark_fig(px.histogram(
                     df_fil, x="cantidad_predicha", nbins=30,
-                    color_discrete_sequence=["#4361ee"],
+                    color_discrete_sequence=["#4f8eff"],
                     title="Distribución de cantidad predicha",
-                )
+                ))
                 fig_hist.update_layout(height=320)
                 st.plotly_chart(fig_hist, use_container_width=True)
 
@@ -605,10 +605,320 @@ def show_prediccion():
                     .sort_values("Demanda promedio", ascending=False)
                     .head(10)
                 )
-                fig_top = px.bar(
+                fig_top = dark_fig(px.bar(
                     top_df, x="producto", y="Demanda promedio",
                     text_auto=".1f", title="Top 10 productos por demanda promedio",
-                    color_discrete_sequence=["#3a0ca3"],
-                )
+                    color_discrete_sequence=["#a78bfa"],
+                ))
                 fig_top.update_layout(height=350)
                 st.plotly_chart(fig_top, use_container_width=True)
+
+    # ═══════════════════════════════════════════════════════
+    # TAB 4 — FIDELIZACIÓN DE CLIENTES  ⬅ NUEVO
+    # ═══════════════════════════════════════════════════════
+    with tab_fidelizacion:
+        st.subheader("🏆 Fidelización de Clientes")
+        st.markdown(
+            "Segmentación basada en patrones de demanda del histórico de predicciones. "
+            "Se identifican combinaciones producto–zona–promoción con alta recurrencia "
+            "como proxy de comportamiento fiel del consumidor."
+        )
+
+        if historico_df.empty:
+            st.info("No hay datos históricos disponibles para el análisis de fidelización.")
+        else:
+            df_fid = historico_df.copy()
+
+            # ── Segmentación por nivel de demanda ────────────────────
+            sec("📊 Segmentación de demanda por producto")
+
+            demanda_prod = (
+                df_fid.groupby("producto")["cantidad_predicha"]
+                .agg(["mean", "sum", "count"])
+                .reset_index()
+                .rename(columns={"mean": "promedio", "sum": "total", "count": "registros"})
+                .sort_values("promedio", ascending=False)
+            )
+
+            # Clasificar en segmentos de lealtad
+            p66 = demanda_prod["promedio"].quantile(0.66)
+            p33 = demanda_prod["promedio"].quantile(0.33)
+
+            def clasificar(val):
+                if val >= p66:
+                    return "🟢 Alta demanda"
+                elif val >= p33:
+                    return "🟡 Demanda media"
+                else:
+                    return "🔴 Baja demanda"
+
+            demanda_prod["Segmento"] = demanda_prod["promedio"].apply(clasificar)
+
+            # KPIs de segmentación
+            k1, k2, k3 = st.columns(3)
+            alta  = (demanda_prod["Segmento"] == "🟢 Alta demanda").sum()
+            media = (demanda_prod["Segmento"] == "🟡 Demanda media").sum()
+            baja  = (demanda_prod["Segmento"] == "🔴 Baja demanda").sum()
+            k1.markdown(f'<div class="seg-card"><div class="seg-label">Productos alta demanda</div><div class="seg-value" style="color:#34d399">{alta}</div><div class="seg-sub">Demanda promedio ≥ {p66:.1f} uds</div></div>', unsafe_allow_html=True)
+            k2.markdown(f'<div class="seg-card"><div class="seg-label">Productos demanda media</div><div class="seg-value" style="color:#fbbf24">{media}</div><div class="seg-sub">Entre {p33:.1f} y {p66:.1f} uds</div></div>', unsafe_allow_html=True)
+            k3.markdown(f'<div class="seg-card"><div class="seg-label">Productos baja demanda</div><div class="seg-value" style="color:#fb7185">{baja}</div><div class="seg-sub">Demanda promedio < {p33:.1f} uds</div></div>', unsafe_allow_html=True)
+
+            fig_seg = dark_fig(px.bar(
+                demanda_prod.head(15),
+                x="producto", y="promedio",
+                color="Segmento",
+                color_discrete_map={
+                    "🟢 Alta demanda":   "#34d399",
+                    "🟡 Demanda media":  "#fbbf24",
+                    "🔴 Baja demanda":   "#fb7185",
+                },
+                text_auto=".1f",
+                title="Demanda promedio por producto (top 15)",
+            ))
+            fig_seg.update_layout(height=380, xaxis_tickangle=-35)
+            st.plotly_chart(fig_seg, use_container_width=True)
+
+            # ── Mapa de calor: producto vs zona ───────────────────────
+            if "tipo_zona" in df_fid.columns:
+                sec("🗺️ Mapa de preferencia: Producto × Zona")
+                st.caption("Intensidad = cantidad predicha promedio. Identifica qué productos son más demandados por zona.")
+
+                heatmap_df = (
+                    df_fid.groupby(["producto", "tipo_zona"])["cantidad_predicha"]
+                    .mean()
+                    .reset_index()
+                    .pivot(index="producto", columns="tipo_zona", values="cantidad_predicha")
+                    .fillna(0)
+                )
+
+                fig_heat = go.Figure(data=go.Heatmap(
+                    z=heatmap_df.values,
+                    x=heatmap_df.columns.tolist(),
+                    y=heatmap_df.index.tolist(),
+                    colorscale="Blues",
+                    text=np.round(heatmap_df.values, 1),
+                    texttemplate="%{text}",
+                    hoverongaps=False,
+                ))
+                fig_heat.update_layout(
+                    **PLOTLY_DARK,
+                    height=max(300, len(heatmap_df) * 28),
+                    title="Demanda promedio por producto y zona",
+                    xaxis_title="Zona",
+                    yaxis_title="Producto",
+                )
+                st.plotly_chart(fig_heat, use_container_width=True)
+
+            # ── Combinaciones más recurrentes (proxy fidelización) ────
+            if "tipo_promocion" in df_fid.columns and "tipo_zona" in df_fid.columns:
+                sec("🔁 Combinaciones más recurrentes (proxy de fidelización)")
+                st.caption(
+                    "Las combinaciones producto–zona–promoción con mayor demanda acumulada "
+                    "representan los patrones de compra más consistentes: indicadores de lealtad."
+                )
+
+                combos = (
+                    df_fid.groupby(["producto", "tipo_zona", "tipo_promocion"])["cantidad_predicha"]
+                    .agg(["sum", "mean", "count"])
+                    .reset_index()
+                    .rename(columns={"sum": "Demanda total", "mean": "Demanda promedio", "count": "Frecuencia"})
+                    .sort_values("Demanda total", ascending=False)
+                    .head(10)
+                )
+                combos["Índice de fidelidad"] = (
+                    (combos["Demanda total"] / combos["Demanda total"].max() * 50) +
+                    (combos["Frecuencia"]    / combos["Frecuencia"].max()    * 50)
+                ).round(1)
+
+                st.dataframe(combos, use_container_width=True, hide_index=True)
+
+                fig_combo = dark_fig(px.bar(
+                    combos, x="Demanda total",
+                    y=combos["producto"] + " · " + combos["tipo_zona"],
+                    orientation="h",
+                    color="Índice de fidelidad",
+                    color_continuous_scale="Blues",
+                    text_auto=True,
+                    title="Top 10 combinaciones por demanda acumulada",
+                ))
+                fig_combo.update_layout(
+                    height=400,
+                    yaxis_title="",
+                    coloraxis_showscale=False,
+                )
+                st.plotly_chart(fig_combo, use_container_width=True)
+
+            # ── Impacto de promociones en fidelización ────────────────
+            if "tipo_promocion" in df_fid.columns:
+                sec("🏷️ Impacto de promociones en la demanda")
+                promo_df = (
+                    df_fid.groupby("tipo_promocion")["cantidad_predicha"]
+                    .agg(["mean", "sum"])
+                    .reset_index()
+                    .rename(columns={"mean": "Demanda promedio", "sum": "Demanda total"})
+                    .sort_values("Demanda promedio", ascending=False)
+                )
+
+                fig_promo = dark_fig(px.bar(
+                    promo_df, x="tipo_promocion", y="Demanda promedio",
+                    color="Demanda promedio",
+                    color_continuous_scale="Purples",
+                    text_auto=".1f",
+                    title="Demanda promedio según tipo de promoción",
+                ))
+                fig_promo.update_layout(height=320, coloraxis_showscale=False, xaxis_title="Tipo de promoción")
+                st.plotly_chart(fig_promo, use_container_width=True)
+
+    # ═══════════════════════════════════════════════════════
+    # TAB 5 — ANÁLISIS ECONÓMICO  ⬅ NUEVO
+    # ═══════════════════════════════════════════════════════
+    with tab_economico:
+        st.subheader("💰 Análisis Económico")
+        st.markdown(
+            "Estimación de ingresos potenciales basada en el histórico de predicciones "
+            "y los precios promedio por producto. Incluye comparativa con/sin promoción "
+            "y escenarios de optimización de ingresos."
+        )
+
+        if historico_df.empty or precios_df.empty:
+            st.info("No hay datos suficientes para el análisis económico.")
+        else:
+            df_eco = historico_df.merge(precios_df, on="producto", how="left")
+            df_eco["ingreso_estimado"] = df_eco["cantidad_predicha"] * df_eco["precio_promedio"]
+
+            # ── KPIs económicos globales ──────────────────────────────
+            sec("💵 Indicadores económicos globales")
+
+            ingreso_total  = df_eco["ingreso_estimado"].sum()
+            ingreso_prom   = df_eco["ingreso_estimado"].mean()
+            producto_mayor = df_eco.groupby("producto")["ingreso_estimado"].sum().idxmax()
+            ingreso_mayor  = df_eco.groupby("producto")["ingreso_estimado"].sum().max()
+
+            e1, e2, e3 = st.columns(3)
+            e1.markdown(f'<div class="seg-card"><div class="seg-label">Ingreso total estimado</div><div class="seg-value" style="color:#4f8eff">S/ {ingreso_total:,.0f}</div><div class="seg-sub">Suma de todos los registros</div></div>', unsafe_allow_html=True)
+            e2.markdown(f'<div class="seg-card"><div class="seg-label">Ingreso promedio por registro</div><div class="seg-value" style="color:#34d399">S/ {ingreso_prom:,.2f}</div><div class="seg-sub">Promedio histórico</div></div>', unsafe_allow_html=True)
+            e3.markdown(f'<div class="seg-card"><div class="seg-label">Producto más rentable</div><div class="seg-value" style="color:#a78bfa;font-size:1.1rem;padding-top:0.2rem">{producto_mayor}</div><div class="seg-sub">S/ {ingreso_mayor:,.0f} acumulado</div></div>', unsafe_allow_html=True)
+
+            # ── Ingresos por producto ─────────────────────────────────
+            sec("📦 Ingresos estimados por producto")
+
+            ing_prod = (
+                df_eco.groupby("producto")
+                .agg(
+                    demanda_total   = ("cantidad_predicha", "sum"),
+                    precio_promedio = ("precio_promedio",   "mean"),
+                    ingreso_total   = ("ingreso_estimado",  "sum"),
+                )
+                .reset_index()
+                .sort_values("ingreso_total", ascending=False)
+            )
+            ing_prod["precio_promedio"] = ing_prod["precio_promedio"].round(2)
+            ing_prod["ingreso_total"]   = ing_prod["ingreso_total"].round(2)
+
+            fig_ing = dark_fig(px.bar(
+                ing_prod.head(12),
+                x="producto", y="ingreso_total",
+                color="ingreso_total",
+                color_continuous_scale="Blues",
+                text_auto=".0f",
+                title="Ingreso estimado total por producto (top 12)",
+            ))
+            fig_ing.update_layout(height=380, xaxis_tickangle=-35, coloraxis_showscale=False)
+            st.plotly_chart(fig_ing, use_container_width=True)
+
+            st.dataframe(
+                ing_prod.rename(columns={
+                    "producto":       "Producto",
+                    "demanda_total":  "Demanda total (uds)",
+                    "precio_promedio":"Precio promedio (S/)",
+                    "ingreso_total":  "Ingreso estimado (S/)",
+                }),
+                use_container_width=True, hide_index=True,
+            )
+
+            # ── ROI de promociones ────────────────────────────────────
+            if "tipo_promocion" in df_eco.columns:
+                sec("🏷️ ROI de promociones — Ingreso promedio con vs sin promoción")
+                st.caption(
+                    "Se compara el ingreso estimado promedio entre registros con promoción activa "
+                    "y sin promoción. Un ROI positivo indica que la promoción genera más ingreso por transacción."
+                )
+
+                sin_promo_keywords = ["ninguno", "none", "sin promoción", "sin promo"]
+                df_eco["tiene_promo"] = ~df_eco["tipo_promocion"].str.lower().isin(sin_promo_keywords)
+
+                roi_df = (
+                    df_eco.groupby("tiene_promo")["ingreso_estimado"]
+                    .mean()
+                    .reset_index()
+                )
+                roi_df["Tipo"] = roi_df["tiene_promo"].map({True: "Con promoción", False: "Sin promoción"})
+                roi_df = roi_df.rename(columns={"ingreso_estimado": "Ingreso promedio (S/)"})
+
+                fig_roi = dark_fig(px.bar(
+                    roi_df, x="Tipo", y="Ingreso promedio (S/)",
+                    color="Tipo",
+                    color_discrete_map={"Con promoción": "#34d399", "Sin promoción": "#6b7280"},
+                    text_auto=".2f",
+                    title="Ingreso promedio: con vs sin promoción",
+                ))
+                fig_roi.update_layout(height=320, showlegend=False)
+                st.plotly_chart(fig_roi, use_container_width=True)
+
+                # Desglose por tipo de promoción
+                promo_eco = (
+                    df_eco.groupby("tipo_promocion")
+                    .agg(
+                        ingreso_prom = ("ingreso_estimado", "mean"),
+                        ingreso_sum  = ("ingreso_estimado", "sum"),
+                        registros    = ("ingreso_estimado", "count"),
+                    )
+                    .reset_index()
+                    .sort_values("ingreso_prom", ascending=False)
+                    .rename(columns={
+                        "tipo_promocion": "Tipo de promoción",
+                        "ingreso_prom":   "Ingreso promedio (S/)",
+                        "ingreso_sum":    "Ingreso total (S/)",
+                        "registros":      "Registros",
+                    })
+                )
+                promo_eco["Ingreso promedio (S/)"] = promo_eco["Ingreso promedio (S/)"].round(2)
+                promo_eco["Ingreso total (S/)"]    = promo_eco["Ingreso total (S/)"].round(2)
+                st.dataframe(promo_eco, use_container_width=True, hide_index=True)
+
+            # ── Ingresos por zona ─────────────────────────────────────
+            if "tipo_zona" in df_eco.columns:
+                sec("🏪 Ingresos estimados por zona")
+
+                zona_eco = (
+                    df_eco.groupby("tipo_zona")["ingreso_estimado"]
+                    .agg(["sum", "mean"])
+                    .reset_index()
+                    .rename(columns={
+                        "tipo_zona": "Zona",
+                        "sum":       "Ingreso total (S/)",
+                        "mean":      "Ingreso promedio (S/)",
+                    })
+                    .sort_values("Ingreso total (S/)", ascending=False)
+                )
+
+                fig_zona = dark_fig(px.pie(
+                    zona_eco,
+                    names="Zona",
+                    values="Ingreso total (S/)",
+                    color_discrete_sequence=COLOR_SEQ,
+                    title="Distribución de ingresos por zona",
+                    hole=0.45,
+                ))
+                fig_zona.update_layout(height=360)
+                st.plotly_chart(fig_zona, use_container_width=True)
+
+            # ── Escenario óptimo global ───────────────────────────────
+            sec("🎯 Producto de mayor potencial económico")
+            mejor_prod = ing_prod.iloc[0]
+            st.success(
+                f"**Producto más rentable:** {mejor_prod['producto']}\n\n"
+                f"**Demanda total estimada:** {int(mejor_prod['demanda_total']):,} unidades\n\n"
+                f"**Precio promedio:** S/ {mejor_prod['precio_promedio']}\n\n"
+                f"**Ingreso total estimado:** S/ {mejor_prod['ingreso_total']:,.2f}"
+            )
