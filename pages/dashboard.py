@@ -8,7 +8,7 @@ DASHBOARD_CSS = """
 <style>
     .kpi-card { background: var(--card, #1c1f2b); border: 1px solid var(--border, rgba(255,255,255,0.07)); border-radius: 14px; padding: 1.25rem 1.5rem; transition: all 0.2s ease; }
     .kpi-card:hover { border-color: rgba(79,142,255,0.25); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.25); }
-    .kpi-label { font-size: 0.75rem; color: var(--muted, #6b7280); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; font-weight: 600; }
+    .kpi-label { font-size: 0.75rem; color: var(--muted, #b0b8cc); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; font-weight: 600; }
     .kpi-value { font-family: 'Syne', sans-serif; font-size: 1.9rem; font-weight: 800; color: var(--text, #e8eaf0); line-height: 1; }
     .kpi-value.accent  { color: #4f8eff; }
     .kpi-value.success { color: #34d399; }
@@ -16,9 +16,34 @@ DASHBOARD_CSS = """
     .section-header { display: flex; align-items: center; gap: 0.6rem; margin: 2rem 0 1rem; }
     .section-header .dot { width: 8px; height: 8px; border-radius: 50%; background: #4f8eff; flex-shrink: 0; }
     .section-title { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; color: #e8eaf0; }
-    .filter-title { font-family: 'Syne', sans-serif; font-size: 0.8rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
-    div[data-baseweb="select"] > div { background: #e8eaf0  !important; border-color: rgba(255,255,255,0.1) !important; border-radius: 8px !important; }
-    div[data-baseweb="tag"] { background: rgba(79,142,255,0.2) !important; color: #4f8eff !important; }
+    .filter-title { font-family: 'Syne', sans-serif; font-size: 0.8rem; font-weight: 700; color: #b0b8cc; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
+
+    /* ── Selectbox y Multiselect: fondo oscuro, texto legible ── */
+    div[data-baseweb="select"] > div {
+        background: #1c1f2b !important;
+        border-color: rgba(255,255,255,0.12) !important;
+        border-radius: 8px !important;
+        color: #e8eaf0 !important;
+    }
+    div[data-baseweb="select"] > div > div {
+        color: #e8eaf0 !important;
+    }
+    /* Dropdown desplegado */
+    div[data-baseweb="popover"] ul {
+        background: #1c1f2b !important;
+        border: 1px solid rgba(255,255,255,0.10) !important;
+    }
+    div[data-baseweb="popover"] li {
+        background: #1c1f2b !important;
+        color: #e8eaf0 !important;
+    }
+    div[data-baseweb="popover"] li:hover {
+        background: #20243a !important;
+        color: #ffffff !important;
+    }
+    /* Tags del multiselect */
+    div[data-baseweb="tag"] { background: rgba(79,142,255,0.2) !important; color: #7eaaff !important; }
+    div[data-baseweb="tag"] span { color: #7eaaff !important; }
 </style>
 """
 
@@ -57,7 +82,7 @@ def show_dashboard():
         <div style="font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;color:#e8eaf0;letter-spacing:-0.5px;">
             Inteligencia Comercial
         </div>
-        <div style="color:#6b7280;font-size:0.9rem;margin-top:0.25rem;">
+        <div style="color:#b0b8cc;font-size:0.9rem;margin-top:0.25rem;">
             Análisis predictivo de ventas en tiempo real
         </div>
     </div>
@@ -113,7 +138,6 @@ def show_dashboard():
         st.markdown('<div class="filter-title" style="margin-top:1rem;">Configuración de análisis</div>',
                     unsafe_allow_html=True)
 
-        # Tipo de análisis siempre visible
         tipo_analisis = st.selectbox(
             "Tipo de análisis",
             ["Demanda Temporal", "Producto vs Tiempo", "Promoción vs Tiempo",
@@ -121,7 +145,6 @@ def show_dashboard():
             key="tipo_analisis"
         )
 
-        # "Agrupar por" y "Producto específico" SOLO para Demanda Temporal
         tipo_tiempo       = "Mes"
         producto_analisis = "Todos"
 
@@ -139,8 +162,6 @@ def show_dashboard():
                 )
 
     # ── Aplicar filtros ───────────────────────────────────────────────────────
-    # df_filtrado: respeta clima, zona, promoción y multiselect de productos.
-    # Se usa en todos los análisis comparativos (Producto/Promo/Clima/Zona vs Tiempo).
     df_filtrado = df[
         df["producto"].isin(productos) &
         df["clima"].isin(climas) &
@@ -148,8 +169,6 @@ def show_dashboard():
         df["tipo_promocion"].isin(promociones)
     ]
 
-    # df_temporal: solo para Demanda Temporal.
-    # Si se elige un producto específico, filtra a ese único producto.
     if tipo_analisis == "Demanda Temporal" and producto_analisis != "Todos":
         df_temporal = df_filtrado[df_filtrado["producto"] == producto_analisis].copy()
     else:
@@ -197,7 +216,6 @@ def show_dashboard():
 
     fig = None
 
-    # Demanda Temporal: usa df_temporal (puede ser 1 producto o todos)
     if tipo_analisis == "Demanda Temporal":
         if tipo_tiempo == "Día":
             t = df_temporal.groupby("dia")["cantidad_predicha"].sum().reset_index()
@@ -218,7 +236,6 @@ def show_dashboard():
             fig = px.line(t, x="hora", y="cantidad_predicha",
                           markers=True, color_discrete_sequence=[ACCENT])
 
-    # Comparativos: siempre usan df_filtrado (todos los productos del multiselect)
     elif tipo_analisis == "Producto vs Tiempo":
         t = df_filtrado.groupby(["producto", "mes_nombre"])["cantidad_predicha"].sum().reset_index()
         t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
