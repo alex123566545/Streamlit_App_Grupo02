@@ -783,7 +783,18 @@ def show_prediccion():
         if historico_df.empty or precios_df.empty:
             st.info("No hay datos suficientes para el análisis económico.")
         else:
-            df_eco = historico_df.merge(precios_df, on="producto", how="left")
+            # Normalizar a minúsculas antes del merge para evitar NaN
+            historico_norm = historico_df.copy()
+            precios_norm   = precios_df.copy()
+            historico_norm["producto"] = historico_norm["producto"].str.strip().str.lower()
+            precios_norm["producto"]   = precios_norm["producto"].str.strip().str.lower()
+
+            df_eco = historico_norm.merge(precios_norm, on="producto", how="left")
+
+            # Si aún quedan NaN en precio (producto sin precio histórico), usar mediana global
+            precio_mediana = df_eco["precio_promedio"].median()
+            df_eco["precio_promedio"] = df_eco["precio_promedio"].fillna(precio_mediana)
+
             df_eco["ingreso_estimado"] = df_eco["cantidad_predicha"] * df_eco["precio_promedio"]
 
             # ── KPIs económicos globales ──────────────────────────────
