@@ -24,9 +24,9 @@ st.markdown("""
         --accent:  #4f8eff;
         --accent2: #a78bfa;
         --success: #34d399;
-        --text:    #FFFCFC;
-        --muted:   #b0b8cc;      /* ← era #6b7280, ahora mucho más legible */
-        --muted2:  #8892a4;      /* tono medio para jerarquía secundaria   */
+        --text:    #ffffff;
+        --muted:   #ffffff;
+        --muted2:  #ffffff;
         --border:  rgba(255,255,255,0.09);
     }
 
@@ -57,7 +57,7 @@ st.markdown("""
         display: inline-block;
         border: 1px solid rgba(79,142,255,0.4);
         background: rgba(79,142,255,0.10);
-        color: #7eaaff;           /* más claro que el accent puro */
+        color: #ffffff;
         font-size: 0.75rem;
         font-weight: 600;
         letter-spacing: 0.12em;
@@ -73,7 +73,7 @@ st.markdown("""
         font-weight: 800;
         line-height: 1.1;
         letter-spacing: -1.5px;
-        color: var(--text);
+        color: #ffffff;
         margin-bottom: 1.25rem;
     }
     .hero-title .gradient-text {
@@ -83,14 +83,13 @@ st.markdown("""
         background-clip: text;
     }
 
-    /* ← subtítulo hero: antes #6b7280, ahora visible */
     .hero-subtitle {
         font-size: 1.05rem;
-        color: var(--muted);
+        color: #ffffff;
         max-width: 520px;
         margin: 0 auto 3rem;
         line-height: 1.65;
-        font-weight: 400;         /* era 300, subimos un poco el peso también */
+        font-weight: 400;
     }
 
     /* ── Stats ── */
@@ -111,10 +110,9 @@ st.markdown("""
         color: var(--accent);
         line-height: 1;
     }
-    /* ← stat label: antes #6b7280 casi invisible, ahora legible */
     .stat-label {
         font-size: 0.78rem;
-        color: var(--muted);
+        color: #ffffff;
         margin-top: 0.4rem;
         text-transform: uppercase;
         letter-spacing: 0.09em;
@@ -149,13 +147,12 @@ st.markdown("""
         font-family: 'Syne', sans-serif;
         font-size: 0.95rem;
         font-weight: 700;
-        color: var(--text);
+        color: #ffffff;
         margin-bottom: 0.4rem;
     }
-    /* ← descripción de cards: el cambio más notorio */
     .cap-desc {
         font-size: 0.82rem;
-        color: var(--muted);      /* era #6b7280 → ahora #b0b8cc */
+        color: #ffffff;
         line-height: 1.55;
         font-weight: 400;
     }
@@ -174,15 +171,24 @@ st.markdown("""
     div[data-testid="stButton"] button[kind="secondary"] {
         background: transparent !important;
         border: 1px solid rgba(255,255,255,0.15) !important;
-        color: #c8d0e0 !important;   /* era var(--muted) oscuro, ahora legible */
+        color: #ffffff !important;
     }
     div[data-testid="stButton"] button[kind="secondary"]:hover {
-        color: var(--text) !important;
+        color: #ffffff !important;
         border-color: rgba(255,255,255,0.25) !important;
     }
 
     /* ── Separador ── */
     hr { border-color: var(--border) !important; margin: 0 !important; }
+
+    /* ── Textos globales de Streamlit ── */
+    p, span, label, div, h1, h2, h3, h4, h5, h6 { color: #ffffff !important; }
+    [data-testid="stMetricLabel"] { color: #ffffff !important; }
+    [data-testid="stMetricValue"] { color: #ffffff !important; }
+    [data-testid="stMetricDelta"] { color: #ffffff !important; }
+    .stCaption, [data-testid="stCaptionContainer"] { color: #ffffff !important; }
+    [data-testid="stMarkdownContainer"] p { color: #ffffff !important; }
+    [data-testid="stMarkdownContainer"] span { color: #ffffff !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -200,7 +206,7 @@ col_brand, col_nav, _ = st.columns([2, 5, 1])
 with col_brand:
     st.markdown(
         '<div style="font-family:\'Syne\',sans-serif;font-weight:800;font-size:1.2rem;'
-        'color:#e8eaf0;padding:0.6rem 0;">📈 <span style="color:#4f8eff">Retail</span>Predict</div>',
+        'color:#ffffff;padding:0.6rem 0;">📈 <span style="color:#4f8eff">Retail</span>Predict</div>',
         unsafe_allow_html=True
     )
 with col_nav:
