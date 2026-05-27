@@ -23,13 +23,13 @@ PREDICCION_CSS = """
         font-family: 'Syne', sans-serif;
         font-size: 1.8rem;
         font-weight: 800;
-        color: #e8eaf0;
+        color: #ffffff;
         margin-bottom: 0.2rem;
         letter-spacing: -0.5px;
     }
     .sub-header {
         font-size: 0.9rem;
-        color: #b0b8cc;
+        color: #ffffff;
         margin-bottom: 1.5rem;
     }
 
@@ -48,28 +48,28 @@ PREDICCION_CSS = """
         transition: all 0.2s ease;
     }
     .seg-card:hover { border-color: rgba(79,142,255,0.25); transform: translateY(-1px); }
-    .seg-label { font-size: 0.72rem; color: #b0b8cc; text-transform: uppercase; letter-spacing: 0.09em; font-weight: 600; margin-bottom: 0.3rem; }
-    .seg-value { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 800; color: #e8eaf0; line-height: 1; }
-    .seg-sub   { font-size: 0.8rem; color: #8892a4; margin-top: 0.25rem; }
+    .seg-label { font-size: 0.72rem; color: #ffffff; text-transform: uppercase; letter-spacing: 0.09em; font-weight: 600; margin-bottom: 0.3rem; }
+    .seg-value { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 800; color: #ffffff; line-height: 1; }
+    .seg-sub   { font-size: 0.8rem; color: #ffffff; margin-top: 0.25rem; }
 
     /* Selectbox oscuro */
     div[data-baseweb="select"] > div {
         background: #1c1f2b !important;
         border-color: rgba(255,255,255,0.12) !important;
         border-radius: 8px !important;
-        color: #e8eaf0 !important;
+        color: #ffffff !important;
     }
-    div[data-baseweb="select"] > div > div { color: #e8eaf0 !important; }
+    div[data-baseweb="select"] > div > div { color: #ffffff !important; }
     div[data-baseweb="popover"] ul  { background: #1c1f2b !important; border: 1px solid rgba(255,255,255,0.10) !important; }
-    div[data-baseweb="popover"] li  { background: #1c1f2b !important; color: #e8eaf0 !important; }
+    div[data-baseweb="popover"] li  { background: #1c1f2b !important; color: #ffffff !important; }
     div[data-baseweb="popover"] li:hover { background: #20243a !important; color: #ffffff !important; }
-    div[data-baseweb="tag"] { background: rgba(79,142,255,0.2) !important; color: #7eaaff !important; }
-    div[data-baseweb="tag"] span { color: #7eaaff !important; }
+    div[data-baseweb="tag"] { background: rgba(79,142,255,0.2) !important; color: #ffffff !important; }
+    div[data-baseweb="tag"] span { color: #ffffff !important; }
 
     /* Section header */
     .sec-header { display: flex; align-items: center; gap: 0.6rem; margin: 1.75rem 0 0.75rem; }
     .sec-dot { width: 8px; height: 8px; border-radius: 50%; background: #4f8eff; flex-shrink: 0; }
-    .sec-title { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; color: #e8eaf0; }
+    .sec-title { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; color: #ffffff; }
 </style>
 """
 
@@ -228,7 +228,7 @@ PLOTLY_DARK = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     font_family="DM Sans",
-    font_color="#e8eaf0",
+    font_color="#ffffff",
     margin=dict(t=40, b=30, l=10, r=10),
     legend=dict(bgcolor="rgba(22,25,32,0.8)", bordercolor="rgba(255,255,255,0.07)", borderwidth=1),
 )
