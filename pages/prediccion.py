@@ -117,16 +117,6 @@ def load_history():
     return df
 
 
-@st.cache_data(show_spinner=False, ttl=3600)
-def load_ventas_dataset():
-    conn = get_connection()
-    try:
-        df = pd.read_sql("SELECT * FROM gold_ml.ventas_dataset LIMIT 5000", conn)
-    finally:
-        conn.close()
-    return df
-
-
 # =========================================================
 # FEATURE ENGINEERING
 # =========================================================
@@ -231,39 +221,6 @@ def demanda_badge(pred_dia: int):
 
 
 # =========================================================
-# MÉTRICAS CRISP-DM
-# =========================================================
-def compute_metrics(model, features, ventas_df: pd.DataFrame):
-    target = "cantidad_vendida"
-    if target not in ventas_df.columns:
-        return None
-    disponibles = [c for c in features if c in ventas_df.columns]
-    if len(disponibles) < len(features):
-        return None
-    y = ventas_df[target]
-    try:
-        y_pred_rf = model.predict(ventas_df[features])
-    except Exception:
-        return None
-
-    mae_rf  = mean_absolute_error(y, y_pred_rf)
-    rmse_rf = np.sqrt(mean_squared_error(y, y_pred_rf))
-    r2_rf   = r2_score(y, y_pred_rf)
-
-    X_base      = ventas_df[["precio_unitario"]].values
-    lr          = LinearRegression().fit(X_base, y)
-    y_pred_base = lr.predict(X_base)
-    mae_base    = mean_absolute_error(y, y_pred_base)
-    rmse_base   = np.sqrt(mean_squared_error(y, y_pred_base))
-    r2_base     = r2_score(y, y_pred_base)
-
-    return {
-        "RF":   {"MAE": mae_rf,   "RMSE": rmse_rf,   "R2": r2_rf},
-        "Base": {"MAE": mae_base, "RMSE": rmse_base, "R2": r2_base},
-    }
-
-
-# =========================================================
 # HELPERS DE VISUALIZACIÓN
 # =========================================================
 PLOTLY_DARK = dict(
@@ -309,9 +266,8 @@ def show_prediccion():
         productos_df, promociones_df, tiendas_df, climas_df, precios_df = load_dimensions()
         historico_df = load_history()
 
-    tab_pred, tab_metricas, tab_hist, tab_fidelizacion, tab_economico = st.tabs([
+    tab_pred, tab_hist, tab_fidelizacion, tab_economico = st.tabs([
         "📊 Predicción de Demanda",
-        "📐 Métricas CRISP-DM",
         "📋 Histórico",
         "🏆 Fidelización de Clientes",
         "💰 Análisis Económico",
@@ -505,77 +461,7 @@ def show_prediccion():
                     st.caption(f"Importancia no disponible: {e}")
 
     # ═══════════════════════════════════════════════════════
-    # TAB 2 — MÉTRICAS CRISP-DM
-    # ═══════════════════════════════════════════════════════
-    with tab_metricas:
-        st.subheader("📐 Evaluación del modelo — Metodología CRISP-DM")
-        st.markdown("""
-        El proyecto sigue la metodología **CRISP-DM** para el desarrollo del modelo predictivo.
-        A continuación se comparan las métricas del **Random Forest Regressor**
-        frente a la **Regresión Lineal Simple** (modelo base / *baseline*).
-        """)
-
-        with st.spinner("Calculando métricas…"):
-            try:
-                ventas_df = load_ventas_dataset()
-                metricas  = compute_metrics(model, features, ventas_df)
-            except Exception as e:
-                metricas = None
-                st.warning(f"No se pudo conectar al dataset de ventas: {e}")
-
-        if metricas:
-            rf, base = metricas["RF"], metricas["Base"]
-            st.markdown("##### Comparación: Random Forest vs Baseline (Regresión Lineal)")
-            m1, m2, m3 = st.columns(3)
-            m1.metric("MAE  — RF",  f"{rf['MAE']:.3f}",  delta=f"{rf['MAE']-base['MAE']:.3f} vs baseline",   delta_color="inverse")
-            m2.metric("RMSE — RF",  f"{rf['RMSE']:.3f}", delta=f"{rf['RMSE']-base['RMSE']:.3f} vs baseline", delta_color="inverse")
-            m3.metric("R²   — RF",  f"{rf['R2']:.3f}",   delta=f"{rf['R2']-base['R2']:.3f} vs baseline")
-
-            comp_df = pd.DataFrame({
-                "Métrica":       ["MAE", "RMSE", "R²"],
-                "Random Forest": [rf["MAE"],   rf["RMSE"],   rf["R2"]],
-                "Baseline (LR)": [base["MAE"], base["RMSE"], base["R2"]],
-            }).melt("Métrica", var_name="Modelo", value_name="Valor")
-
-            fig_met = dark_fig(px.bar(
-                comp_df, x="Métrica", y="Valor", color="Modelo",
-                barmode="group", text_auto=".3f",
-                color_discrete_sequence=["#4f8eff", "#6b7280"],
-                title="Comparación de métricas: Random Forest vs Baseline",
-            ))
-            fig_met.update_layout(height=380)
-            st.plotly_chart(fig_met, use_container_width=True)
-
-            with st.expander("ℹ️ Descripción de las métricas"):
-                st.markdown("""
-                | Métrica | Descripción |
-                |---------|-------------|
-                | **MAE** | Promedio de errores absolutos. Menor es mejor. |
-                | **RMSE** | Raíz del error cuadrático medio. Penaliza errores grandes. |
-                | **R²** | Proporción de variabilidad explicada. Más cerca de 1 es mejor. |
-                """)
-        else:
-            st.info("Las métricas se calcularán cuando el dataset contenga `cantidad_vendida` y las features requeridas.")
-
-        with st.expander("📋 Variables del modelo"):
-            st.markdown("""
-            **Variable dependiente:** `cantidad_vendida`
-
-            **Variables independientes:**
-            - `producto` · `categoria_producto`
-            - `mes` · `dia_mes` · `hora` · `trimestre` · `temporada`
-            - `es_fin_semana` · `hora_pico`
-            - `precio_unitario`
-            - `tipo_promocion` · `producto_promocion`
-            - `ubicacion_tienda` · `tipo_zona`
-            - `clima`
-
-            **Algoritmo:** Random Forest Regressor (scikit-learn)
-            **Enfoque:** Aprendizaje supervisado — Regresión
-            """)
-
-    # ═══════════════════════════════════════════════════════
-    # TAB 3 — HISTÓRICO
+    # TAB 2 — HISTÓRICO
     # ═══════════════════════════════════════════════════════
     with tab_hist:
         st.subheader("📋 Histórico de predicciones almacenadas")
@@ -614,7 +500,7 @@ def show_prediccion():
                 st.plotly_chart(fig_top, use_container_width=True)
 
     # ═══════════════════════════════════════════════════════
-    # TAB 4 — FIDELIZACIÓN DE CLIENTES  ⬅ NUEVO
+    # TAB 3 — FIDELIZACIÓN DE CLIENTES
     # ═══════════════════════════════════════════════════════
     with tab_fidelizacion:
         st.subheader("🏆 Fidelización de Clientes")
@@ -629,7 +515,6 @@ def show_prediccion():
         else:
             df_fid = historico_df.copy()
 
-            # ── Segmentación por nivel de demanda ────────────────────
             sec("📊 Segmentación de demanda por producto")
 
             demanda_prod = (
@@ -640,7 +525,6 @@ def show_prediccion():
                 .sort_values("promedio", ascending=False)
             )
 
-            # Clasificar en segmentos de lealtad
             p66 = demanda_prod["promedio"].quantile(0.66)
             p33 = demanda_prod["promedio"].quantile(0.33)
 
@@ -654,7 +538,6 @@ def show_prediccion():
 
             demanda_prod["Segmento"] = demanda_prod["promedio"].apply(clasificar)
 
-            # KPIs de segmentación
             k1, k2, k3 = st.columns(3)
             alta  = (demanda_prod["Segmento"] == "🟢 Alta demanda").sum()
             media = (demanda_prod["Segmento"] == "🟡 Demanda media").sum()
@@ -678,7 +561,6 @@ def show_prediccion():
             fig_seg.update_layout(height=380, xaxis_tickangle=-35)
             st.plotly_chart(fig_seg, use_container_width=True)
 
-            # ── Mapa de calor: producto vs zona ───────────────────────
             if "tipo_zona" in df_fid.columns:
                 sec("🗺️ Mapa de preferencia: Producto × Zona")
                 st.caption("Intensidad = cantidad predicha promedio. Identifica qué productos son más demandados por zona.")
@@ -709,7 +591,6 @@ def show_prediccion():
                 )
                 st.plotly_chart(fig_heat, use_container_width=True)
 
-            # ── Combinaciones más recurrentes (proxy fidelización) ────
             if "tipo_promocion" in df_fid.columns and "tipo_zona" in df_fid.columns:
                 sec("🔁 Combinaciones más recurrentes (proxy de fidelización)")
                 st.caption(
@@ -748,7 +629,6 @@ def show_prediccion():
                 )
                 st.plotly_chart(fig_combo, use_container_width=True)
 
-            # ── Impacto de promociones en fidelización ────────────────
             if "tipo_promocion" in df_fid.columns:
                 sec("🏷️ Impacto de promociones en la demanda")
                 promo_df = (
@@ -770,7 +650,7 @@ def show_prediccion():
                 st.plotly_chart(fig_promo, use_container_width=True)
 
     # ═══════════════════════════════════════════════════════
-    # TAB 5 — ANÁLISIS ECONÓMICO  ⬅ NUEVO
+    # TAB 4 — ANÁLISIS ECONÓMICO
     # ═══════════════════════════════════════════════════════
     with tab_economico:
         st.subheader("💰 Análisis Económico")
@@ -783,7 +663,6 @@ def show_prediccion():
         if historico_df.empty or precios_df.empty:
             st.info("No hay datos suficientes para el análisis económico.")
         else:
-            # Normalizar a minúsculas antes del merge para evitar NaN
             historico_norm = historico_df.copy()
             precios_norm   = precios_df.copy()
             historico_norm["producto"] = historico_norm["producto"].str.strip().str.lower()
@@ -791,13 +670,11 @@ def show_prediccion():
 
             df_eco = historico_norm.merge(precios_norm, on="producto", how="left")
 
-            # Si aún quedan NaN en precio (producto sin precio histórico), usar mediana global
             precio_mediana = df_eco["precio_promedio"].median()
             df_eco["precio_promedio"] = df_eco["precio_promedio"].fillna(precio_mediana)
 
             df_eco["ingreso_estimado"] = df_eco["cantidad_predicha"] * df_eco["precio_promedio"]
 
-            # ── KPIs económicos globales ──────────────────────────────
             sec("💵 Indicadores económicos globales")
 
             ingreso_total  = df_eco["ingreso_estimado"].sum()
@@ -810,7 +687,6 @@ def show_prediccion():
             e2.markdown(f'<div class="seg-card"><div class="seg-label">Ingreso promedio por registro</div><div class="seg-value" style="color:#34d399">S/ {ingreso_prom:,.2f}</div><div class="seg-sub">Promedio histórico</div></div>', unsafe_allow_html=True)
             e3.markdown(f'<div class="seg-card"><div class="seg-label">Producto más rentable</div><div class="seg-value" style="color:#a78bfa;font-size:1.1rem;padding-top:0.2rem">{producto_mayor}</div><div class="seg-sub">S/ {ingreso_mayor:,.0f} acumulado</div></div>', unsafe_allow_html=True)
 
-            # ── Ingresos por producto ─────────────────────────────────
             sec("📦 Ingresos estimados por producto")
 
             ing_prod = (
@@ -847,7 +723,6 @@ def show_prediccion():
                 use_container_width=True, hide_index=True,
             )
 
-            # ── ROI de promociones ────────────────────────────────────
             if "tipo_promocion" in df_eco.columns:
                 sec("🏷️ ROI de promociones — Ingreso promedio con vs sin promoción")
                 st.caption(
@@ -876,7 +751,6 @@ def show_prediccion():
                 fig_roi.update_layout(height=320, showlegend=False)
                 st.plotly_chart(fig_roi, use_container_width=True)
 
-                # Desglose por tipo de promoción
                 promo_eco = (
                     df_eco.groupby("tipo_promocion")
                     .agg(
@@ -897,7 +771,6 @@ def show_prediccion():
                 promo_eco["Ingreso total (S/)"]    = promo_eco["Ingreso total (S/)"].round(2)
                 st.dataframe(promo_eco, use_container_width=True, hide_index=True)
 
-            # ── Ingresos por zona ─────────────────────────────────────
             if "tipo_zona" in df_eco.columns:
                 sec("🏪 Ingresos estimados por zona")
 
@@ -924,7 +797,6 @@ def show_prediccion():
                 fig_zona.update_layout(height=360)
                 st.plotly_chart(fig_zona, use_container_width=True)
 
-            # ── Escenario óptimo global ───────────────────────────────
             sec("🎯 Producto de mayor potencial económico")
             mejor_prod = ing_prod.iloc[0]
             st.success(
