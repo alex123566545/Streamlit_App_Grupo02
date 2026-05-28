@@ -52,31 +52,21 @@ PLOTLY_LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     font_family="DM Sans",
-    font_color="#ffffff",        # ← cambiado de #e8eaf0 a #ffffff
+    font_color="#e8eaf0",
     margin=dict(t=30, b=30, l=10, r=10),
-    legend=dict(
-        bgcolor="rgba(22,25,32,0.8)",
-        bordercolor="rgba(255,255,255,0.07)",
-        borderwidth=1,
-        font=dict(color="#ffffff"),  # ← agregado
-    ),
+    legend=dict(bgcolor="rgba(22,25,32,0.8)", bordercolor="rgba(255,255,255,0.07)", borderwidth=1),
 )
+ACCENT      = "#4f8eff"
+COLOR_SEQ   = ["#4f8eff", "#a78bfa", "#34d399", "#f97316", "#fb7185", "#fbbf24"]
+ORDEN_DIAS  = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+ORDEN_MESES = ["January", "February", "March", "April", "May", "June",
+               "July", "August", "September", "October", "November", "December"]
+
 
 def apply_layout(fig):
     fig.update_layout(**PLOTLY_LAYOUT)
-    fig.update_xaxes(
-        gridcolor="rgba(255,255,255,0.05)",
-        linecolor="rgba(255,255,255,0.05)",
-        tickfont=dict(color="#ffffff"),
-        title_font=dict(color="#ffffff"),
-    )
-    fig.update_yaxes(
-        gridcolor="rgba(255,255,255,0.05)",
-        linecolor="rgba(255,255,255,0.05)",
-        tickfont=dict(color="#ffffff"),
-        title_font=dict(color="#ffffff"),
-    )
-    fig.update_traces(textfont=dict(color="#ffffff"))
+    fig.update_xaxes(gridcolor="rgba(255,255,255,0.05)", linecolor="rgba(255,255,255,0.05)")
+    fig.update_yaxes(gridcolor="rgba(255,255,255,0.05)", linecolor="rgba(255,255,255,0.05)")
     return fig
 
 
