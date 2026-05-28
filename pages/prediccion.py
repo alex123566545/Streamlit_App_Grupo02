@@ -236,8 +236,8 @@ COLOR_SEQ = ["#4f8eff", "#a78bfa", "#34d399", "#f97316", "#fb7185", "#fbbf24"]
 
 def dark_fig(fig):
     fig.update_layout(**PLOTLY_DARK)
-    fig.update_xaxes(gridcolor="rgba(255,255,255,0.05)", linecolor="rgba(255,255,255,0.05)")
-    fig.update_yaxes(gridcolor="rgba(255,255,255,0.05)", linecolor="rgba(255,255,255,0.05)")
+    fig.update_xaxes(gridcolor="rgba(255,255,255,1)", linecolor="rgba(255,255,255,0.05)")
+    fig.update_yaxes(gridcolor="rgba(255,255,255,0.05)", linecolor="rgba(255,255,255,1)")
     return fig
 
 def sec(title: str):
