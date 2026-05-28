@@ -576,14 +576,33 @@ def show_prediccion():
             st.dataframe(df_fil, use_container_width=True, hide_index=True)
 
             if "cantidad_predicha" in df_fil.columns and not df_fil.empty:
-                fig_hist = dark_fig(px.histogram(
+                # =========================================================
+                # 1. GRÁFICO: DISTRIBUCIÓN DE CANTIDAD PREDICHA (HISTOGRAM)
+                # =========================================================
+                fig_hist = px.histogram(
                     df_fil, x="cantidad_predicha", nbins=30,
                     color_discrete_sequence=["#4f8eff"],
                     title="Distribución de cantidad predicha",
-                ))
-                fig_hist.update_layout(height=320)
+                )
+                fig_hist = dark_fig(fig_hist)
+                fig_hist.update_layout(
+                    height=320,
+                    title=dict(text="Distribución de cantidad predicha", font=dict(color="white")),
+                    font=dict(color="white"),
+                    xaxis=dict(
+                        tickfont=dict(color="white"),
+                        title=dict(text="Cantidad predicha", font=dict(color="white"))
+                    ),
+                    yaxis=dict(
+                        tickfont=dict(color="white"),
+                        title=dict(text="Frecuencia", font=dict(color="white"))
+                    )
+                )
                 st.plotly_chart(fig_hist, use_container_width=True)
 
+                # =========================================================
+                # 2. GRÁFICO: TOP 10 PRODUCTOS POR DEMANDA PROMEDIO (BAR)
+                # =========================================================
                 top_df = (
                     df_fil.groupby("producto")["cantidad_predicha"]
                     .mean().reset_index()
@@ -591,12 +610,28 @@ def show_prediccion():
                     .sort_values("Demanda promedio", ascending=False)
                     .head(10)
                 )
-                fig_top = dark_fig(px.bar(
+                
+                fig_top = px.bar(
                     top_df, x="producto", y="Demanda promedio",
-                    text_auto=".1f", title="Top 10 productos por demanda promedio",
+                    text_auto=".1f", 
+                    title="Top 10 productos por demanda promedio",
                     color_discrete_sequence=["#a78bfa"],
-                ))
-                fig_top.update_layout(height=350)
+                )
+                fig_top = dark_fig(fig_top)
+                fig_top.update_layout(
+                    height=350,
+                    title=dict(text="Top 10 productos por demanda promedio", font=dict(color="white")),
+                    font=dict(color="white"),
+                    xaxis=dict(
+                        tickfont=dict(color="white"),
+                        title=dict(text="Producto", font=dict(color="white"))
+                    ),
+                    yaxis=dict(
+                        tickfont=dict(color="white"),
+                        title=dict(text="Demanda promedio", font=dict(color="white"))
+                    )
+                )
+                fig_top.update_traces(textfont=dict(color="white"), textposition="outside")
                 st.plotly_chart(fig_top, use_container_width=True)
 
     # ═══════════════════════════════════════════════════════
