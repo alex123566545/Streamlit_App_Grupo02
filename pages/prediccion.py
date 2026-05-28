@@ -369,13 +369,37 @@ def show_prediccion():
                     "Periodo":  ["Día", "Semana", "Mes"],
                     "Cantidad": [pred_dia, pred_sem, pred_mes],
                 })
-                fig_proy = dark_fig(px.bar(
+
+                # 1. Gráfico base
+                fig_proy = px.bar(
                     proy_df, x="Periodo", y="Cantidad", text_auto=True,
                     color="Periodo",
                     color_discrete_sequence=["#4f8eff", "#a78bfa", "#34d399"],
-                ))
-                fig_proy.update_layout(showlegend=False, height=300)
+                )
+
+                # 2. Aplicar función oscura
+                fig_proy = dark_fig(fig_proy)
+
+                # 3. Forzar fuentes a blanco en ejes y deshabilitar leyenda
+                fig_proy.update_layout(
+                    showlegend=False, 
+                    height=300,
+                    font=dict(color="white"),
+                    xaxis=dict(
+                        tickfont=dict(color="white"),
+                        title=dict(text="Periodo", font=dict(color="white"))
+                    ),
+                    yaxis=dict(
+                        tickfont=dict(color="white"),
+                        title=dict(text="Cantidad", font=dict(color="white"))
+                    )
+                )
+
+                # 4. Forzar el texto dentro/sobre las barras a blanco
+                fig_proy.update_traces(textfont=dict(color="white"), textposition="outside")
+
                 st.plotly_chart(fig_proy, use_container_width=True)
+
 
                 sec("🗓️ Detalle día a día — próximos 7 días")
                 st.caption("Cada día se predice de forma independiente con su propio contexto.")
@@ -385,14 +409,40 @@ def show_prediccion():
                 det_df["¿Finde?"] = det_df["¿Finde?"].map({True: "✅", False: "—"})
                 st.dataframe(det_df, hide_index=True, use_container_width=True)
 
-                fig_det = dark_fig(px.bar(
+                # 1. Gráfico base
+                fig_det = px.bar(
                     det_df, x="Fecha", y="Unidades",
                     color="¿Finde?",
                     color_discrete_map={"✅": "#a78bfa", "—": "#4f8eff"},
                     text_auto=True,
                     title="Unidades por día (morado = fin de semana)",
-                ))
-                fig_det.update_layout(height=320, showlegend=False)
+                )
+
+                # 2. Aplicar función oscura
+                fig_det = dark_fig(fig_det)
+
+                # 3. Forzar fuentes a blanco en título principal y ejes
+                fig_det.update_layout(
+                    height=320, 
+                    showlegend=False,
+                    title=dict(
+                        text="Unidades por día (morado = fin de semana)",
+                        font=dict(color="white")
+                    ),
+                    font=dict(color="white"),
+                    xaxis=dict(
+                        tickfont=dict(color="white"),
+                        title=dict(text="Fecha", font=dict(color="white"))
+                    ),
+                    yaxis=dict(
+                        tickfont=dict(color="white"),
+                        title=dict(text="Unidades", font=dict(color="white"))
+                    )
+                )
+
+                # 4. Forzar el texto sobre las barras a blanco
+                fig_det.update_traces(textfont=dict(color="white"), textposition="outside")
+
                 st.plotly_chart(fig_det, use_container_width=True)
 
                 sec("📈 Comparación con histórico")
