@@ -624,8 +624,20 @@ def show_prediccion():
                 text_auto=".1f",
                 title="Demanda promedio por producto (top 15)",
             ))
-            fig_seg.update_layout(height=380, xaxis_tickangle=-35)
-            st.plotly_chart(fig_seg, use_container_width=True)
+        fig_seg.update_layout(
+            height=380,
+            xaxis_tickangle=-35,
+
+            legend=dict(
+                font=dict(
+                    color="#ffffff",
+                    size=13
+                ),
+                bgcolor="rgba(0,0,0,0)"
+            )
+        )
+
+        st.plotly_chart(fig_seg, use_container_width=True)
 
             if "tipo_zona" in df_fid.columns:
                 sec("🗺️ Mapa de preferencia: Producto × Zona")
