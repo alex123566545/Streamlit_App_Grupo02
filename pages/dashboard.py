@@ -240,18 +240,18 @@ def show_dashboard():
     # EXTENSIÓN DEL DASHBOARD: ANÁLISIS TEMPORALES ESTILIZADOS
     # ==============================================================================
     elif tipo_analisis == "Producto vs Tiempo":
-        # Agrupación manteniendo estrictamente el nombre original de tu variable
+        # Agrupación usando estrictamente el nombre de tu variable interna
         t = df_filtrado.groupby(["producto", "mes_nombre"])["cantidad_predicha"].sum().reset_index()
         t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
         
         fig = px.bar(
             t.sort_values("mes_nombre"), 
             x="mes_nombre", 
-            y="cantidad_predicha",  # Variable idéntica sin cambios
+            y="cantidad_predicha",  # <--- Manteniendo el nombre exacto de tu columna
             color="producto", 
             barmode="group", 
             color_discrete_sequence=COLOR_SEQ,
-            labels={"mes_nombre": "📅 Periodo Mensual", "cantidad_predicha": "Volumen Predicho (Unidades)", "producto": "📦 Producto"},
+            labels={"mes_nombre": "📅 Periodo Mensual", "cantidad_predicha": "cantidad_predicha", "producto": "📦 Producto"},
             title="📈 EVOLUCIÓN HISTÓRICA Y PROYECCIÓN DE DEMANDA POR CATEGORÍA"
         )
 
@@ -262,11 +262,11 @@ def show_dashboard():
         fig = px.line(
             t.sort_values("mes_nombre"), 
             x="mes_nombre", 
-            y="cantidad_predicha",  # Variable idéntica sin cambios
+            y="cantidad_predicha",  # <--- Manteniendo el nombre exacto de tu columna
             color="tipo_promocion", 
             markers=True, 
             color_discrete_sequence=COLOR_SEQ,
-            labels={"mes_nombre": "📅 Periodo Mensual", "cantidad_predicha": "Promedio de Cantidad Predicha", "tipo_promocion": "🏷️ Estrategia"},
+            labels={"mes_nombre": "📅 Periodo Mensual", "cantidad_predicha": "cantidad_predicha", "tipo_promocion": "🏷️ Estrategia"},
             title="🏷️ IMPACTO TEMPORAL DE LAS ESTRATEGIAS PROMOCIONALES ACTIVAS"
         )
         fig.update_traces(line=dict(width=3.5), marker=dict(size=8, line=dict(width=1, color='#FFFFFF')))
@@ -278,11 +278,11 @@ def show_dashboard():
         fig = px.line(
             t.sort_values("mes_nombre"), 
             x="mes_nombre", 
-            y="cantidad_predicha",  # Variable idéntica sin cambios
+            y="cantidad_predicha",  # <--- Manteniendo el nombre exacto de tu columna
             color="clima", 
             markers=True, 
             color_discrete_sequence=COLOR_SEQ,
-            labels={"mes_nombre": "📅 Periodo Mensual", "cantidad_predicha": "Promedio de Cantidad Predicha", "clima": "🌍 Estado Climático"},
+            labels={"mes_nombre": "📅 Periodo Mensual", "cantidad_predicha": "cantidad_predicha", "clima": "🌍 Estado Climático"},
             title="🌍 ANÁLISIS DE CORRELACIÓN CONTEXTUAL: COMPORTAMIENTO SEGÚN CLIMA"
         )
         fig.update_traces(line=dict(width=3.5), marker=dict(size=8, line=dict(width=1, color='#FFFFFF')))
@@ -294,11 +294,11 @@ def show_dashboard():
         fig = px.bar(
             t.sort_values("mes_nombre"), 
             x="mes_nombre", 
-            y="cantidad_predicha",  # Variable idéntica sin cambios
+            y="cantidad_predicha",  # <--- Manteniendo el nombre exacto de tu columna
             color="tipo_zona", 
             barmode="group", 
             color_discrete_sequence=COLOR_SEQ,
-            labels={"mes_nombre": "📅 Periodo Mensual", "cantidad_predicha": "Total Cantidad Predicha", "tipo_zona": "🌍 Micro-Localización"},
+            labels={"mes_nombre": "📅 Periodo Mensual", "cantidad_predicha": "cantidad_predicha", "tipo_zona": "🌍 Micro-Localización"},
             title="🏢 DISTRIBUCIÓN ASIMÉTRICA DE LA DEMANDA POR ZONIFICACIÓN GEOGRÁFICA"
         )
 
@@ -308,13 +308,13 @@ def show_dashboard():
     if fig:
         def apply_layout(figura):
             figura.update_layout(
-                paper_bgcolor="rgba(6, 10, 18, 1)",   # Fondo Abisal (#060A12)
-                plot_bgcolor="rgba(16, 24, 40, 1)",    # Fondo Interno Tarjeta (#101828)
+                paper_bgcolor="rgba(6, 10, 18, 1)",   # Fondo Oscuro Abisal de la presentación
+                plot_bgcolor="rgba(16, 24, 40, 1)",    # Fondo Interno de Tarjeta
                 
                 font=dict(
                     family="Segoe UI, Tahoma, Geneva, Verdana, sans-serif",
                     size=12,
-                    color="#ADBACC"                   # Gris de lectura (#ADBACC)
+                    color="#ADBACC"                   # Color de texto estilizado
                 ),
                 
                 title=dict(
@@ -327,13 +327,13 @@ def show_dashboard():
                 
                 legend=dict(
                     bgcolor="rgba(16, 24, 40, 0.85)",
-                    bordercolor="#1F2937",            # Borde (#1F2937)
+                    bordercolor="#1F2937",
                     borderwidth=1,
                     font=dict(color="#FFFFFF", size=11)
                 ),
                 
                 xaxis=dict(
-                    gridcolor="#1F2937",
+                    gridcolor="#1F2937",              # Cuadrículas sutiles estilo Dashboard
                     linecolor="#1F2937",
                     zeroline=False,
                     tickfont=dict(color="#ADBACC")
