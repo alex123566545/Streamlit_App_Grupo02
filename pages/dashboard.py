@@ -236,135 +236,31 @@ def show_dashboard():
             fig = px.line(t, x="hora", y="cantidad_predicha",
                           markers=True, color_discrete_sequence=[ACCENT])
 
-# ==============================================================================
-    # EXTENSIÓN DEL DASHBOARD: ANÁLISIS TEMPORALES ESTILIZADOS
-    # ==============================================================================
     elif tipo_analisis == "Producto vs Tiempo":
-        # Agrupación robusta para evitar vacíos visuales
         t = df_filtrado.groupby(["producto", "mes_nombre"])["cantidad_predicha"].sum().reset_index()
         t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
-        
-        fig = px.bar(
-            t.sort_values("mes_nombre"), 
-            x="mes_nombre", 
-            y="cantidad_predicha",
-            color="producto", 
-            barmode="group", 
-            color_discrete_sequence=COLOR_SEQ,
-            labels={"mes_nombre": "📅 Periodo Mensual", "cantidad_predicha": "📦 Volumen Demandado (Unidades)", "producto": "📦 Producto"},
-            title="📈 EVOLUCIÓN HISTÓRICA Y PROYECCIÓN DE DEMANDA POR CATEGORÍA"
-        )
+        fig = px.bar(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
+                     color="producto", barmode="group", color_discrete_sequence=COLOR_SEQ)
 
     elif tipo_analisis == "Promoción vs Tiempo":
         t = df_filtrado.groupby(["tipo_promocion", "mes_nombre"])["cantidad_predicha"].mean().reset_index()
         t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
-        
-        fig = px.line(
-            t.sort_values("mes_nombre"), 
-            x="mes_nombre", 
-            y="cantidad_predicha",
-            color="tipo_promocion", 
-            markers=True, 
-            color_discrete_sequence=COLOR_SEQ,
-            labels={"mes_nombre": "📅 Periodo Mensual", "cantidad_predicha": "📊 Demanda Promedio por Ticket", "tipo_promocion": "🏷️ Estrategia"},
-            title="🏷️ IMPACTO TEMPORAL DE LAS ESTRATEGIAS PROMOCIONALES ACTIVAS"
-        )
-        # Hacer las líneas un poco más gruesas y estilizar marcadores neón
-        fig.update_traces(line=dict(width=3.5), marker=dict(size=8, line=dict(width=1, color='#FFFFFF')))
+        fig = px.line(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
+                      color="tipo_promocion", markers=True, color_discrete_sequence=COLOR_SEQ)
 
     elif tipo_analisis == "Clima vs Tiempo":
         t = df_filtrado.groupby(["clima", "mes_nombre"])["cantidad_predicha"].mean().reset_index()
         t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
-        
-        fig = px.line(
-            t.sort_values("mes_nombre"), 
-            x="mes_nombre", 
-            y="cantidad_predicha",
-            color="clima", 
-            markers=True, 
-            color_discrete_sequence=COLOR_SEQ,
-            labels={"mes_nombre": "📅 Periodo Mensual", "cantidad_predicha": "📊 Elasticidad Promedio Ventas", "clima": "🌍 Estado Climático"},
-            title="🌍 ANÁLISIS DE CORRELACIÓN CONTEXTUAL: COMPORTAMIENTO SEGÚN CLIMA"
-        )
-        fig.update_traces(line=dict(width=3.5), marker=dict(size=8, line=dict(width=1, color='#FFFFFF')))
+        fig = px.line(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
+                      color="clima", markers=True, color_discrete_sequence=COLOR_SEQ)
 
     elif tipo_analisis == "Zona vs Tiempo":
         t = df_filtrado.groupby(["tipo_zona", "mes_nombre"])["cantidad_predicha"].sum().reset_index()
         t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
-        
-        fig = px.bar(
-            t.sort_values("mes_nombre"), 
-            x="mes_nombre", 
-            y="cantidad_predicha",
-            color="tipo_zona", 
-            barmode="group", 
-            color_discrete_sequence=COLOR_SEQ,
-            labels={"mes_nombre": "📅 Periodo Mensual", "cantidad_predicha": "🏢 Consolidado Transaccional", "tipo_zona": "🌍 Micro-Localización"},
-            title="🏢 DISTRIBUCIÓN ASIMÉTRICA DE LA DEMANDA POR ZONIFICACIÓN GEOGRÁFICA"
-        )
+        fig = px.bar(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
+                     color="tipo_zona", barmode="group", color_discrete_sequence=COLOR_SEQ)
 
-    # ==============================================================================
-    # RENDERIZADO E INYECCIÓN DE MAQUETA DE COLOR (APPLY_LAYOUT PRESTIGIO)
-    # ==============================================================================
     if fig:
-        def apply_layout(figura):
-            figura.update_layout(
-                # Configuración del Canvas (Fondo Oscuro Abisal)
-                paper_bgcolor="rgba(6, 10, 18, 1)",   # Equivalente a tu BG_COLOR de la presentación
-                plot_bgcolor="rgba(16, 24, 40, 1)",    # Fondo interno de las tarjetas (CARD_COLOR)
-                
-                # Tipografía unificada Segoe UI de alta tecnología
-                font=dict(
-                    family="Segoe UI, Tahoma, Geneva, Verdana, sans-serif",
-                    size=12,
-                    color="#ADBACC"                   # Gris plateado de alta legibilidad (TEXT_MUTED)
-                ),
-                
-                # Estilo premium del título
-                title=dict(
-                    font=dict(size=16, color="#FFFFFF", family="Segoe UI"),
-                    x=0.01,
-                    y=0.95
-                ),
-                
-                # Márgenes óptimos para eliminar espacios muertos
-                margin=dict(l=50, r=30, t=70, b=50),
-                
-                # Leyendas flotantes estilizadas
-                legend=dict(
-                    bgcolor="rgba(16, 24, 40, 0.85)",
-                    bordercolor="#1F2937",            # BORDER_COLOR industrial
-                    borderwidth=1,
-                    font=dict(color="#FFFFFF", size=11)
-                ),
-                
-                # Control estricto de cuadrículas e interfaces de ejes
-                xaxis=dict(
-                    gridcolor="#1F2937",              # Líneas guía oscuras, no invasivas
-                    linecolor="#1F2937",
-                    zeroline=False,
-                    tickfont=dict(color="#ADBACC")
-                ),
-                yaxis=dict(
-                    gridcolor="#1F2937",
-                    linecolor="#1F2937",
-                    zeroline=False,
-                    tickfont=dict(color="#ADBACC")
-                ),
-                
-                # Modo de comparación de barras
-                hovermode="closest"
-            )
-            
-            # Personalización de las cajas flotantes (tooltips) al pasar el cursor
-            figura.update_traces(
-                hoverlabel=dict(
-                    bgcolor="#161824",
-                    font_size=13,
-                    font_family="Consolas, monospace"
-                )
-            )
-
         apply_layout(fig)
         st.plotly_chart(fig, use_container_width=True)
 
