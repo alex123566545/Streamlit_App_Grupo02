@@ -537,155 +537,346 @@ def show_prediccion():
                 st.plotly_chart(fig_top, use_container_width=True)
 
     # ═══════════════════════════════════════════════════════
-    # TAB 3 — FIDELIZACIÓN DE CLIENTES
-    # ═══════════════════════════════════════════════════════
-    with tab_fidelizacion:
-        st.subheader("🏆 Fidelización de Clientes")
-        st.markdown(
-            "Segmentación basada en patrones de demanda del histórico de predicciones. "
-            "Se identifican combinaciones producto–zona–promoción con alta recurrencia "
-            "como proxy de comportamiento fiel del consumidor."
+# TAB 3 — FIDELIZACIÓN DE CLIENTES
+# ═══════════════════════════════════════════════════════
+with tab_fidelizacion:
+
+    # ── CSS EXTRA PARA FORZAR TEXTO BLANCO ─────────────────
+    st.markdown("""
+    <style>
+
+    /* Textos globales */
+    .stMarkdown,
+    .stMarkdown p,
+    .stMarkdown span,
+    .stMarkdown div,
+    .stCaption,
+    .stAlert,
+    .stDataFrame,
+    .stTable,
+    p, span, label, div, h1, h2, h3, h4, h5, h6 {
+        color: #ffffff !important;
+    }
+
+    /* Subheader */
+    div[data-testid="stSubheader"] {
+        color: #ffffff !important;
+    }
+
+    /* Dataframe */
+    .stDataFrame td,
+    .stDataFrame th {
+        color: #ffffff !important;
+        background-color: #1c1f2b !important;
+    }
+
+    /* Cards */
+    .seg-card {
+        background: #1c1f2b;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 14px;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .seg-label {
+        font-size: 0.72rem;
+        color: #ffffff !important;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        font-weight: 700;
+        margin-bottom: 0.3rem;
+    }
+
+    .seg-value {
+        font-family: 'Syne', sans-serif;
+        font-size: 1.6rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .seg-sub {
+        font-size: 0.82rem;
+        color: #ffffff !important;
+        margin-top: 0.3rem;
+    }
+
+    /* Caption */
+    [data-testid="stCaptionContainer"] {
+        color: #ffffff !important;
+    }
+
+    /* Info box */
+    div[data-testid="stAlertContentInfo"] {
+        color: #ffffff !important;
+    }
+
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.subheader("🏆 Fidelización de Clientes")
+
+    st.markdown(
+        """
+        <div style="
+            color:#ffffff;
+            font-size:0.95rem;
+            line-height:1.7;
+            margin-bottom:1rem;
+        ">
+        Segmentación basada en patrones de demanda del histórico de predicciones.
+        Se identifican combinaciones producto–zona–promoción con alta recurrencia
+        como proxy de comportamiento fiel del consumidor.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    if historico_df.empty:
+        st.info("No hay datos históricos disponibles para el análisis de fidelización.")
+
+    else:
+
+        df_fid = historico_df.copy()
+
+        sec("📊 Segmentación de demanda por producto")
+
+        demanda_prod = (
+            df_fid.groupby("producto")["cantidad_predicha"]
+            .agg(["mean", "sum", "count"])
+            .reset_index()
+            .rename(columns={
+                "mean": "promedio",
+                "sum": "total",
+                "count": "registros"
+            })
+            .sort_values("promedio", ascending=False)
         )
 
-        if historico_df.empty:
-            st.info("No hay datos históricos disponibles para el análisis de fidelización.")
-        else:
-            df_fid = historico_df.copy()
+        p66 = demanda_prod["promedio"].quantile(0.66)
+        p33 = demanda_prod["promedio"].quantile(0.33)
 
-            sec("📊 Segmentación de demanda por producto")
+        def clasificar(val):
+            if val >= p66:
+                return "🟢 Alta demanda"
+            elif val >= p33:
+                return "🟡 Demanda media"
+            else:
+                return "🔴 Baja demanda"
 
-            demanda_prod = (
-                df_fid.groupby("producto")["cantidad_predicha"]
-                .agg(["mean", "sum", "count"])
-                .reset_index()
-                .rename(columns={"mean": "promedio", "sum": "total", "count": "registros"})
-                .sort_values("promedio", ascending=False)
+        demanda_prod["Segmento"] = demanda_prod["promedio"].apply(clasificar)
+
+        k1, k2, k3 = st.columns(3)
+
+        alta  = (demanda_prod["Segmento"] == "🟢 Alta demanda").sum()
+        media = (demanda_prod["Segmento"] == "🟡 Demanda media").sum()
+        baja  = (demanda_prod["Segmento"] == "🔴 Baja demanda").sum()
+
+        k1.markdown(f"""
+        <div class="seg-card">
+            <div class="seg-label">Productos alta demanda</div>
+            <div class="seg-value" style="color:#34d399">{alta}</div>
+            <div class="seg-sub">
+                Demanda promedio ≥ {p66:.1f} uds
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        k2.markdown(f"""
+        <div class="seg-card">
+            <div class="seg-label">Productos demanda media</div>
+            <div class="seg-value" style="color:#fbbf24">{media}</div>
+            <div class="seg-sub">
+                Entre {p33:.1f} y {p66:.1f} uds
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        k3.markdown(f"""
+        <div class="seg-card">
+            <div class="seg-label">Productos baja demanda</div>
+            <div class="seg-value" style="color:#fb7185">{baja}</div>
+            <div class="seg-sub">
+                Demanda promedio &lt; {p33:.1f} uds
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # ── GRÁFICO SEGMENTACIÓN ──────────────────────────
+        fig_seg = dark_fig(px.bar(
+            demanda_prod.head(15),
+            x="producto",
+            y="promedio",
+            color="Segmento",
+            color_discrete_map={
+                "🟢 Alta demanda": "#34d399",
+                "🟡 Demanda media": "#fbbf24",
+                "🔴 Baja demanda": "#fb7185",
+            },
+            text_auto=".1f",
+            title="Demanda promedio por producto (top 15)",
+        ))
+
+        fig_seg.update_layout(
+            height=380,
+            xaxis_tickangle=-35,
+            font_color="#ffffff",
+            title_font_color="#ffffff",
+        )
+
+        fig_seg.update_traces(
+            textfont_color="#ffffff"
+        )
+
+        st.plotly_chart(fig_seg, use_container_width=True)
+
+        # ── HEATMAP ───────────────────────────────────────
+        if "tipo_zona" in df_fid.columns:
+
+            sec("🗺️ Mapa de preferencia: Producto × Zona")
+
+            st.caption(
+                "Intensidad = cantidad predicha promedio. "
+                "Identifica qué productos son más demandados por zona."
             )
 
-            p66 = demanda_prod["promedio"].quantile(0.66)
-            p33 = demanda_prod["promedio"].quantile(0.33)
+            heatmap_df = (
+                df_fid.groupby(["producto", "tipo_zona"])["cantidad_predicha"]
+                .mean()
+                .reset_index()
+                .pivot(
+                    index="producto",
+                    columns="tipo_zona",
+                    values="cantidad_predicha"
+                )
+                .fillna(0)
+            )
 
-            def clasificar(val):
-                if val >= p66:
-                    return "🟢 Alta demanda"
-                elif val >= p33:
-                    return "🟡 Demanda media"
-                else:
-                    return "🔴 Baja demanda"
-
-            demanda_prod["Segmento"] = demanda_prod["promedio"].apply(clasificar)
-
-            k1, k2, k3 = st.columns(3)
-            alta  = (demanda_prod["Segmento"] == "🟢 Alta demanda").sum()
-            media = (demanda_prod["Segmento"] == "🟡 Demanda media").sum()
-            baja  = (demanda_prod["Segmento"] == "🔴 Baja demanda").sum()
-            k1.markdown(f'<div class="seg-card"><div class="seg-label">Productos alta demanda</div><div class="seg-value" style="color:#34d399">{alta}</div><div class="seg-sub">Demanda promedio ≥ {p66:.1f} uds</div></div>', unsafe_allow_html=True)
-            k2.markdown(f'<div class="seg-card"><div class="seg-label">Productos demanda media</div><div class="seg-value" style="color:#fbbf24">{media}</div><div class="seg-sub">Entre {p33:.1f} y {p66:.1f} uds</div></div>', unsafe_allow_html=True)
-            k3.markdown(f'<div class="seg-card"><div class="seg-label">Productos baja demanda</div><div class="seg-value" style="color:#fb7185">{baja}</div><div class="seg-sub">Demanda promedio < {p33:.1f} uds</div></div>', unsafe_allow_html=True)
-
-            fig_seg = dark_fig(px.bar(
-                demanda_prod.head(15),
-                x="producto", y="promedio",
-                color="Segmento",
-                color_discrete_map={
-                    "🟢 Alta demanda":   "#34d399",
-                    "🟡 Demanda media":  "#fbbf24",
-                    "🔴 Baja demanda":   "#fb7185",
-                },
-                text_auto=".1f",
-                title="Demanda promedio por producto (top 15)",
+            fig_heat = go.Figure(data=go.Heatmap(
+                z=heatmap_df.values,
+                x=heatmap_df.columns.tolist(),
+                y=heatmap_df.index.tolist(),
+                colorscale="Blues",
+                text=np.round(heatmap_df.values, 1),
+                texttemplate="%{text}",
+                textfont={"color": "white"},
+                hoverongaps=False,
             ))
-            fig_seg.update_layout(height=380, xaxis_tickangle=-35)
-            st.plotly_chart(fig_seg, use_container_width=True)
 
-            if "tipo_zona" in df_fid.columns:
-                sec("🗺️ Mapa de preferencia: Producto × Zona")
-                st.caption("Intensidad = cantidad predicha promedio. Identifica qué productos son más demandados por zona.")
+            fig_heat.update_layout(
+                **PLOTLY_DARK,
+                height=max(300, len(heatmap_df) * 28),
+                title="Demanda promedio por producto y zona",
+                xaxis_title="Zona",
+                yaxis_title="Producto",
+                font_color="#ffffff",
+                title_font_color="#ffffff",
+            )
 
-                heatmap_df = (
-                    df_fid.groupby(["producto", "tipo_zona"])["cantidad_predicha"]
-                    .mean()
-                    .reset_index()
-                    .pivot(index="producto", columns="tipo_zona", values="cantidad_predicha")
-                    .fillna(0)
-                )
+            st.plotly_chart(fig_heat, use_container_width=True)
 
-                fig_heat = go.Figure(data=go.Heatmap(
-                    z=heatmap_df.values,
-                    x=heatmap_df.columns.tolist(),
-                    y=heatmap_df.index.tolist(),
-                    colorscale="Blues",
-                    text=np.round(heatmap_df.values, 1),
-                    texttemplate="%{text}",
-                    hoverongaps=False,
-                ))
-                fig_heat.update_layout(
-                    **PLOTLY_DARK,
-                    height=max(300, len(heatmap_df) * 28),
-                    title="Demanda promedio por producto y zona",
-                    xaxis_title="Zona",
-                    yaxis_title="Producto",
-                )
-                st.plotly_chart(fig_heat, use_container_width=True)
+        # ── COMBINACIONES ─────────────────────────────────
+        if "tipo_promocion" in df_fid.columns and "tipo_zona" in df_fid.columns:
 
-            if "tipo_promocion" in df_fid.columns and "tipo_zona" in df_fid.columns:
-                sec("🔁 Combinaciones más recurrentes (proxy de fidelización)")
-                st.caption(
-                    "Las combinaciones producto–zona–promoción con mayor demanda acumulada "
-                    "representan los patrones de compra más consistentes: indicadores de lealtad."
-                )
+            sec("🔁 Combinaciones más recurrentes (proxy de fidelización)")
 
-                combos = (
-                    df_fid.groupby(["producto", "tipo_zona", "tipo_promocion"])["cantidad_predicha"]
-                    .agg(["sum", "mean", "count"])
-                    .reset_index()
-                    .rename(columns={"sum": "Demanda total", "mean": "Demanda promedio", "count": "Frecuencia"})
-                    .sort_values("Demanda total", ascending=False)
-                    .head(10)
-                )
-                combos["Índice de fidelidad"] = (
-                    (combos["Demanda total"] / combos["Demanda total"].max() * 50) +
-                    (combos["Frecuencia"]    / combos["Frecuencia"].max()    * 50)
-                ).round(1)
+            st.caption(
+                "Las combinaciones producto–zona–promoción con mayor demanda acumulada "
+                "representan los patrones de compra más consistentes."
+            )
 
-                st.dataframe(combos, use_container_width=True, hide_index=True)
+            combos = (
+                df_fid.groupby([
+                    "producto",
+                    "tipo_zona",
+                    "tipo_promocion"
+                ])["cantidad_predicha"]
+                .agg(["sum", "mean", "count"])
+                .reset_index()
+                .rename(columns={
+                    "sum": "Demanda total",
+                    "mean": "Demanda promedio",
+                    "count": "Frecuencia"
+                })
+                .sort_values("Demanda total", ascending=False)
+                .head(10)
+            )
 
-                fig_combo = dark_fig(px.bar(
-                    combos, x="Demanda total",
-                    y=combos["producto"] + " · " + combos["tipo_zona"],
-                    orientation="h",
-                    color="Índice de fidelidad",
-                    color_continuous_scale="Blues",
-                    text_auto=True,
-                    title="Top 10 combinaciones por demanda acumulada",
-                ))
-                fig_combo.update_layout(
-                    height=400,
-                    yaxis_title="",
-                    coloraxis_showscale=False,
-                )
-                st.plotly_chart(fig_combo, use_container_width=True)
+            combos["Índice de fidelidad"] = (
+                (combos["Demanda total"] / combos["Demanda total"].max() * 50) +
+                (combos["Frecuencia"] / combos["Frecuencia"].max() * 50)
+            ).round(1)
 
-            if "tipo_promocion" in df_fid.columns:
-                sec("🏷️ Impacto de promociones en la demanda")
-                promo_df = (
-                    df_fid.groupby("tipo_promocion")["cantidad_predicha"]
-                    .agg(["mean", "sum"])
-                    .reset_index()
-                    .rename(columns={"mean": "Demanda promedio", "sum": "Demanda total"})
-                    .sort_values("Demanda promedio", ascending=False)
-                )
+            st.dataframe(
+                combos,
+                use_container_width=True,
+                hide_index=True
+            )
 
-                fig_promo = dark_fig(px.bar(
-                    promo_df, x="tipo_promocion", y="Demanda promedio",
-                    color="Demanda promedio",
-                    color_continuous_scale="Purples",
-                    text_auto=".1f",
-                    title="Demanda promedio según tipo de promoción",
-                ))
-                fig_promo.update_layout(height=320, coloraxis_showscale=False, xaxis_title="Tipo de promoción")
-                st.plotly_chart(fig_promo, use_container_width=True)
+            fig_combo = dark_fig(px.bar(
+                combos,
+                x="Demanda total",
+                y=combos["producto"] + " · " + combos["tipo_zona"],
+                orientation="h",
+                color="Índice de fidelidad",
+                color_continuous_scale="Blues",
+                text_auto=True,
+                title="Top 10 combinaciones por demanda acumulada",
+            ))
 
+            fig_combo.update_layout(
+                height=400,
+                yaxis_title="",
+                coloraxis_showscale=False,
+                font_color="#ffffff",
+                title_font_color="#ffffff",
+            )
+
+            fig_combo.update_traces(
+                textfont_color="#ffffff"
+            )
+
+            st.plotly_chart(fig_combo, use_container_width=True)
+
+        # ── PROMOCIONES ───────────────────────────────────
+        if "tipo_promocion" in df_fid.columns:
+
+            sec("🏷️ Impacto de promociones en la demanda")
+
+            promo_df = (
+                df_fid.groupby("tipo_promocion")["cantidad_predicha"]
+                .agg(["mean", "sum"])
+                .reset_index()
+                .rename(columns={
+                    "mean": "Demanda promedio",
+                    "sum": "Demanda total"
+                })
+                .sort_values("Demanda promedio", ascending=False)
+            )
+
+            fig_promo = dark_fig(px.bar(
+                promo_df,
+                x="tipo_promocion",
+                y="Demanda promedio",
+                color="Demanda promedio",
+                color_continuous_scale="Purples",
+                text_auto=".1f",
+                title="Demanda promedio según tipo de promoción",
+            ))
+
+            fig_promo.update_layout(
+                height=320,
+                coloraxis_showscale=False,
+                xaxis_title="Tipo de promoción",
+                font_color="#ffffff",
+                title_font_color="#ffffff",
+            )
+
+            fig_promo.update_traces(
+                textfont_color="#ffffff"
+            )
+
+            st.plotly_chart(fig_promo, use_container_width=True)
     # ═══════════════════════════════════════════════════════
     # TAB 4 — ANÁLISIS ECONÓMICO
     # ═══════════════════════════════════════════════════════
