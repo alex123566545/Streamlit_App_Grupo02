@@ -635,7 +635,7 @@ def show_prediccion():
                     ),
                     bgcolor="rgba(0,0,0,0)"
                 )
-        )
+            )
 
         st.plotly_chart(fig_seg, use_container_width=True)
 
