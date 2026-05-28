@@ -260,8 +260,7 @@ def show_dashboard():
         fig = px.bar(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
                      color="tipo_zona", barmode="group", color_discrete_sequence=COLOR_SEQ)
 
-    if fig:
-        apply_layout(fig)
+   if fig:
         fig.update_layout(
             title_font_color="#ffffff",
             font=dict(color="#ffffff"),
