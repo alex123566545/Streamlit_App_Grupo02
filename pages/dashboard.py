@@ -64,9 +64,25 @@ ORDEN_MESES = ["January", "February", "March", "April", "May", "June",
 
 
 def apply_layout(fig):
-    fig.update_layout(**PLOTLY_LAYOUT)
-    fig.update_xaxes(gridcolor="rgba(255,255,255,0.05)", linecolor="rgba(255,255,255,0.05)")
-    fig.update_yaxes(gridcolor="rgba(255,255,255,0.05)", linecolor="rgba(255,255,255,0.05)")
+    fig.update_layout(
+        **PLOTLY_LAYOUT,
+        title_font_color="#ffffff",
+        font=dict(color="#ffffff"),
+        legend=dict(font=dict(color="#ffffff")),
+    )
+    fig.update_xaxes(
+        gridcolor="rgba(255,255,255,0.05)",
+        linecolor="rgba(255,255,255,0.05)",
+        tickfont=dict(color="#ffffff"),
+        title_font=dict(color="#ffffff"),
+    )
+    fig.update_yaxes(
+        gridcolor="rgba(255,255,255,0.05)",
+        linecolor="rgba(255,255,255,0.05)",
+        tickfont=dict(color="#ffffff"),
+        title_font=dict(color="#ffffff"),
+    )
+    fig.update_traces(textfont=dict(color="#ffffff"))
     return fig
 
 
@@ -260,26 +276,10 @@ def show_dashboard():
         fig = px.bar(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
                      color="tipo_zona", barmode="group", color_discrete_sequence=COLOR_SEQ)
 
-   if fig:
-        fig.update_layout(
-            title_font_color="#ffffff",
-            font=dict(color="#ffffff"),
-            xaxis=dict(
-                tickfont=dict(color="#ffffff"),
-                title_font=dict(color="#ffffff"),
-            ),
-            yaxis=dict(
-                tickfont=dict(color="#ffffff"),
-                title_font=dict(color="#ffffff"),
-            ),
-            legend=dict(
-                font=dict(color="#ffffff"),
-            ),
-        )
-        fig.update_traces(
-            textfont=dict(color="#ffffff"),
-        )
+    if fig:
+        apply_layout(fig)
         st.plotly_chart(fig, use_container_width=True)
+
     # ── Tabla ─────────────────────────────────────────────────────────────────
     st.markdown(
         '<div class="section-header"><div class="dot"></div>'
