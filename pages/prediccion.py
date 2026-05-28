@@ -649,46 +649,46 @@ def show_prediccion():
             k2.markdown(f'<div class="seg-card"><div class="seg-label">Productos demanda media</div><div class="seg-value" style="color:#fbbf24">{media}</div><div class="seg-sub">Entre {p33:.1f} y {p66:.1f} uds</div></div>', unsafe_allow_html=True)
             k3.markdown(f'<div class="seg-card"><div class="seg-label">Productos baja demanda</div><div class="seg-value" style="color:#fb7185">{baja}</div><div class="seg-sub">Demanda promedio < {p33:.1f} uds</div></div>', unsafe_allow_html=True)
 
-        fig_seg = px.bar(
-                    demanda_prod.head(15),
-                    x="producto", y="promedio",
-                    color="Segmento",
-                    color_discrete_map={
-                        "🟢 Alta demanda":   "#34d399",
-                        "🟡 Demanda media":  "#fbbf24",
-                        "🔴 Baja demanda":   "#fb7185",
-                    },
-                    text_auto=".1f",
-                    title="Demanda promedio por producto (top 15)",
-                )
-                fig_seg = dark_fig(fig_seg)
-                fig_seg.update_layout(
-                    height=380, 
-                    xaxis_tickangle=-35,
-                    title=dict(text="Demanda promedio por producto (top 15)", font=dict(color="white")),
-                    font=dict(color="white"),
-                    
-                    # === AQUÍ FORZAMOS EL RECUADRO DE LA LEYENDA A BLANCO ===
-                    legend=dict(
-                        font=dict(color="white") # Color de "Alta demanda", "Demanda media", etc.
-                    ),
-                    legend_title=dict(
-                        text="Segmento",
-                        font=dict(color="white") # Color del título "Segmento"
-                    ),
-                    # ========================================================
-                    
-                    xaxis=dict(
-                        tickfont=dict(color="white"),
-                        title=dict(text="Producto", font=dict(color="white"))
-                    ),
-                    yaxis=dict(
-                        tickfont=dict(color="white"),
-                        title=dict(text="Promedio", font=dict(color="white"))
-                    )
-                )
-                fig_seg.update_traces(textfont=dict(color="white"), textposition="outside")
-                st.plotly_chart(fig_seg, use_container_width=True)
+fig_seg = px.bar(
+            demanda_prod.head(15),
+            x="producto", y="promedio",
+            color="Segmento",
+            color_discrete_map={
+                "🟢 Alta demanda":   "#34d399",
+                "🟡 Demanda media":  "#fbbf24",
+                "🔴 Baja demanda":   "#fb7185",
+            },
+            text_auto=".1f",
+            title="Demanda promedio por producto (top 15)",
+        )
+        fig_seg = dark_fig(fig_seg)
+        fig_seg.update_layout(
+            height=380, 
+            xaxis_tickangle=-35,
+            title=dict(text="Demanda promedio por producto (top 15)", font=dict(color="white")),
+            font=dict(color="white"),
+            
+            # === AQUÍ FORZAMOS EL RECUADRO DE LA LEYENDA A BLANCO ===
+            legend=dict(
+                font=dict(color="white") # Color de "Alta demanda", "Demanda media", etc.
+            ),
+            legend_title=dict(
+                text="Segmento",
+                font=dict(color="white") # Color del título "Segmento"
+            ),
+            # ========================================================
+            
+            xaxis=dict(
+                tickfont=dict(color="white"),
+                title=dict(text="Producto", font=dict(color="white"))
+            ),
+            yaxis=dict(
+                tickfont=dict(color="white"),
+                title=dict(text="Promedio", font=dict(color="white"))
+            )
+        )
+        fig_seg.update_traces(textfont=dict(color="white"), textposition="outside")
+        st.plotly_chart(fig_seg, use_container_width=True)
 
             # =========================================================
             # 2. GRÁFICO: MAPA DE PREFERENCIA (HEATMAP)
