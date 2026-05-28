@@ -393,7 +393,7 @@ def show_prediccion():
                     title="Unidades por día (morado = fin de semana)",
                 ))
 
-                            fig_det.update_layout(
+                fig_det.update_layout(
                 height=320,
                 showlegend=False,
                 title_font_color="#ffffff",          # ← título del gráfico
