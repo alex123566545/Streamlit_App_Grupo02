@@ -235,38 +235,9 @@ PLOTLY_DARK = dict(
 COLOR_SEQ = ["#4f8eff", "#a78bfa", "#34d399", "#f97316", "#fb7185", "#fbbf24"]
 
 def dark_fig(fig):
-
     fig.update_layout(**PLOTLY_DARK)
-
-    fig.update_layout(
-        font=dict(
-            color="#ffffff",
-            family="DM Sans"
-        ),
-
-        title_font=dict(
-            color="#ffffff"
-        )
-    )
-
-    fig.update_xaxes(
-        gridcolor="rgba(255,255,255,0.08)",
-        linecolor="rgba(255,255,255,0.25)",
-        tickfont=dict(color="#ffffff"),
-        title_font=dict(color="#ffffff"),
-    )
-
-    fig.update_yaxes(
-        gridcolor="rgba(255,255,255,0.08)",
-        linecolor="rgba(255,255,255,0.25)",
-        tickfont=dict(color="#ffffff"),
-        title_font=dict(color="#ffffff"),
-    )
-
-    fig.update_traces(
-        textfont=dict(color="#ffffff")
-    )
-
+    fig.update_xaxes(gridcolor="rgba(255,255,255,0.05)", linecolor="rgba(255,255,255,0.05)")
+    fig.update_yaxes(gridcolor="rgba(255,255,255,0.05)", linecolor="rgba(255,255,255,0.05)")
     return fig
 
 def sec(title: str):
@@ -302,7 +273,7 @@ def show_prediccion():
         "💰 Análisis Económico",
     ])
 
-# ═══════════════════════════════════════════════════════
+   # ═══════════════════════════════════════════════════════
 # TAB 1 — PREDICCIÓN
 # ═══════════════════════════════════════════════════════
 with tab_pred:
@@ -312,17 +283,27 @@ with tab_pred:
 
     with col_l:
         fecha = st.date_input("📅 Fecha de inicio", value=date.today())
-        hora  = 12
+        hora = 12
 
-        producto = st.selectbox("🛒 Producto", productos_df["producto"].unique())
+        producto = st.selectbox(
+            "🛒 Producto",
+            productos_df["producto"].unique()
+        )
+
         categoria_producto = productos_df.loc[
-            productos_df["producto"] == producto, "categoria_producto"
+            productos_df["producto"] == producto,
+            "categoria_producto"
         ].values[0]
+
         st.caption(f"Categoría: **{categoria_producto}**")
 
-        precio_promedio = float(precios_df.loc[
-            precios_df["producto"] == producto, "precio_promedio"
-        ].values[0])
+        precio_promedio = float(
+            precios_df.loc[
+                precios_df["producto"] == producto,
+                "precio_promedio"
+            ].values[0]
+        )
+
         st.caption(f"💰 Precio histórico promedio: S/ {precio_promedio}")
 
         precio = st.slider(
@@ -365,7 +346,7 @@ with tab_pred:
         if predecir:
 
             # =====================================================
-            # PREDICCIÓN PRINCIPAL
+            # PREDICCIÓN BASE
             # =====================================================
             data_dia = build_features(
                 fecha,
@@ -429,7 +410,7 @@ with tab_pred:
             ingreso_mes = round(pred_mes * precio, 2)
 
             # =====================================================
-            # RESULTADOS
+            # MÉTRICAS
             # =====================================================
             sec("📊 Resultados predictivos")
 
@@ -635,7 +616,9 @@ with tab_pred:
                 )
 
             else:
-                st.caption("Sin datos históricos para este producto.")
+                st.caption(
+                    "Sin datos históricos para este producto."
+                )
 
             # =====================================================
             # SIMULACIÓN
@@ -792,7 +775,10 @@ with tab_pred:
                 )
 
             except Exception as e:
-                st.caption(f"Importancia no disponible: {e}")
+                st.caption(
+                    f"Importancia no disponible: {e}"
+                )
+
     # ═══════════════════════════════════════════════════════
     # TAB 2 — HISTÓRICO
     # ═══════════════════════════════════════════════════════
@@ -891,21 +877,8 @@ with tab_pred:
                 text_auto=".1f",
                 title="Demanda promedio por producto (top 15)",
             ))
-            fig_seg.update_layout(
-                height=380,
-                xaxis_tickangle=-35,
-
-                legend=dict(
-                    font=dict(
-                        color="#ffffff",
-                        size=13
-                    ),
-                    bgcolor="rgba(0,0,0,0)"
-                )
-            )
-
+            fig_seg.update_layout(height=380, xaxis_tickangle=-35)
             st.plotly_chart(fig_seg, use_container_width=True)
-
 
             if "tipo_zona" in df_fid.columns:
                 sec("🗺️ Mapa de preferencia: Producto × Zona")
@@ -929,46 +902,11 @@ with tab_pred:
                     hoverongaps=False,
                 ))
                 fig_heat.update_layout(
-                **PLOTLY_DARK,
-
-                height=max(300, len(heatmap_df) * 28),
-
-                title=dict(
-                    text="Demanda promedio por producto y zona",
-                    font=dict(
-                        color="#ffffff",
-                        size=20
-                    )
-                ),
-
-                xaxis=dict(
-                    title="Zona",
-                    title_font=dict(color="#ffffff"),
-                    tickfont=dict(color="#ffffff")
-                ),
-
-                yaxis=dict(
-                    title="Producto",
-                    title_font=dict(color="#ffffff"),
-                    tickfont=dict(color="#ffffff")
-                ),
-
-                font=dict(
-                    color="#ffffff"
-                )
-                 )
-                fig_heat.update_traces(
-                    textfont=dict(
-                        color="#000000"
-                    ),
-
-                    colorbar=dict(
-                        tickfont=dict(color="#ffffff"),
-                        title=dict(
-                            text="Demanda",
-                            font=dict(color="#ffffff")
-                        )
-                    )
+                    **PLOTLY_DARK,
+                    height=max(300, len(heatmap_df) * 28),
+                    title="Demanda promedio por producto y zona",
+                    xaxis_title="Zona",
+                    yaxis_title="Producto",
                 )
                 st.plotly_chart(fig_heat, use_container_width=True)
 
@@ -1175,28 +1113,6 @@ with tab_pred:
                     title="Distribución de ingresos por zona",
                     hole=0.45,
                 ))
-                fig_zona.update_layout(
-                    height=360,
-                    title_font_color="#ffffff",        # ← título "Distribución de ingresos por zona"
-                    legend=dict(
-                        font=dict(color="#ffffff", size=14)  # ← leyenda (Comercial, Mixta, Residencial)
-                    )
-                )
-
-                fig_zona.update_traces(
-                    textfont=dict(color="#ffffff"),    # ← porcentajes/etiquetas dentro del gráfico
-                )
-                # ← AGREGA ESTO para cambiar el color de las letras
-                fig_zona.update_layout(
-                    height=360,
-                    legend=dict(
-                        font=dict(
-                            color="#ffffff",   # ← cambia aquí el color que quieras
-                            size=14,
-                        )
-                    )
-                )
-                
                 fig_zona.update_layout(height=360)
                 st.plotly_chart(fig_zona, use_container_width=True)
 
