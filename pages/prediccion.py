@@ -459,10 +459,10 @@ def show_prediccion():
                     fig_imp.update_layout(
                         height=350, 
                         coloraxis_showscale=False,
-                        font=dict(color="white")  # Hace blanca la fuente de los ejes, títulos, etc.
+                        font=dict(color="#FFFFFF")  # Hace blanca la fuente de los ejes, títulos, etc.
                     )
                     # Hace que el texto automático DENTRO o SOBRE las barras también sea blanco
-                    fig_imp.update_traces(textfont=dict(color="white"), textposition="outside") 
+                    fig_imp.update_traces(textfont=dict(color="#FFFFFF"), textposition="outside") 
                     # -----------------------------------------------
 
                     st.plotly_chart(fig_imp, use_container_width=True)
