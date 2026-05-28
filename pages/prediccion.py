@@ -625,16 +625,16 @@ def show_prediccion():
                 title="Demanda promedio por producto (top 15)",
             ))
             fig_seg.update_layout(
-            height=380,
-            xaxis_tickangle=-35,
+                height=380,
+                xaxis_tickangle=-35,
 
-            legend=dict(
-                font=dict(
-                    color="#ffffff",
-                    size=13
-                ),
-                bgcolor="rgba(0,0,0,0)"
-            )
+                legend=dict(
+                    font=dict(
+                        color="#ffffff",
+                        size=13
+                    ),
+                    bgcolor="rgba(0,0,0,0)"
+                )
         )
 
         st.plotly_chart(fig_seg, use_container_width=True)
