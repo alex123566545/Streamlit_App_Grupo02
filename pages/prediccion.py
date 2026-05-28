@@ -624,7 +624,7 @@ def show_prediccion():
                 text_auto=".1f",
                 title="Demanda promedio por producto (top 15)",
             ))
-        fig_seg.update_layout(
+            fig_seg.update_layout(
             height=380,
             xaxis_tickangle=-35,
 
