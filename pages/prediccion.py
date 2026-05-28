@@ -442,41 +442,42 @@ def show_prediccion():
                     f"**Ingreso estimado:** S/ {mejor['Ingreso (S/)']}"
                 )
                 sec("⚙️ Variables más influyentes (Random Forest)")
-                try:
-                    importancias = model.named_steps["model"].feature_importances_
-                    feat_names   = model.named_steps["preprocess"].get_feature_names_out()
-                    imp_df = (
-                        pd.DataFrame({"Variable": feat_names, "Importancia": importancias})
-                        .sort_values("Importancia", ascending=False)
-                        .head(10)
-                    )
-                    
-                    # 1. Creamos el gráfico base
-                    fig_imp = px.bar(
-                        imp_df, x="Variable", y="Importancia", text_auto=True,
-                        color="Importancia", color_continuous_scale="Blues",
-                    )
-                    
-                    # 2. Le aplicas tu función oscura
-                    fig_imp = dark_fig(fig_imp)
-                    
-                    # 3. FORZAMOS el color blanco AL FINAL (así pisamos cualquier config previa)
-                    fig_imp.update_layout(
-                        height=350, 
-                        coloraxis_showscale=False,
-                        font=dict(color="white"),      # Forzar texto de ejes a blanco
-                        title_font=dict(color="white") # Forzar título a blanco (si hubiera)
-                    )
-                    
-                    # Forzar el texto de las barras a blanco y asegurar que sea visible
-                    fig_imp.update_traces(
-                        textfont=dict(color="white"), 
-                        textposition="outside"
-                    ) 
+                                try:
+                                    importancias = model.named_steps["model"].feature_importances_
+                                    feat_names   = model.named_steps["preprocess"].get_feature_names_out()
+                                    imp_df = (
+                                        pd.DataFrame({"Variable": feat_names, "Importancia": importancias})
+                                        .sort_values("Importancia", ascending=False)
+                                        .head(10)
+                                    )
+                                    
+                                    # 1. Creamos el gráfico base
+                                    fig_imp = px.bar(
+                                        imp_df, x="Variable", y="Importancia", text_auto=".3f", # .3f para mostrar 3 decimales limpios
+                                        color="Importancia", color_continuous_scale="Blues",
+                                    )
+                                    
+                                    # 2. Le aplicas tu función oscura
+                                    fig_imp = dark_fig(fig_imp)
+                                    
+                                    # 3. FORZAMOS el color blanco en el Layout y en los ejes explicitamente
+                                    fig_imp.update_layout(
+                                        height=350, 
+                                        coloraxis_showscale=False,
+                                        font=dict(color="white"),      # Color de fuente global
+                                        xaxis=dict(tickfont=dict(color="white"), titlefont=dict(color="white")), # Eje X blanco
+                                        yaxis=dict(tickfont=dict(color="white"), titlefont=dict(color="white"))  # Eje Y blanco
+                                    )
+                                    
+                                    # 4. FORZAMOS el color blanco en las etiquetas de texto de las barras
+                                    fig_imp.update_traces(
+                                        textfont=dict(color="white"), 
+                                        textposition="outside" # Saca el texto de la barra para que resalte en el fondo oscuro
+                                    ) 
 
-                    st.plotly_chart(fig_imp, use_container_width=True)
-                except Exception as e:
-                    st.caption(f"Importancia no disponible: {e}")               
+                                    st.plotly_chart(fig_imp, use_container_width=True)
+                                except Exception as e:
+                                    st.caption(f"Importancia no disponible: {e}")                            
 
     # ═══════════════════════════════════════════════════════
     # TAB 2 — HISTÓRICO
