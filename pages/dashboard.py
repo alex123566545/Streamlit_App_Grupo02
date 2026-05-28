@@ -64,25 +64,9 @@ ORDEN_MESES = ["January", "February", "March", "April", "May", "June",
 
 
 def apply_layout(fig):
-    fig.update_layout(
-        **PLOTLY_LAYOUT,
-        title_font_color="#ffffff",
-        font=dict(color="#ffffff"),
-        legend=dict(font=dict(color="#ffffff")),
-    )
-    fig.update_xaxes(
-        gridcolor="rgba(255,255,255,0.05)",
-        linecolor="rgba(255,255,255,0.05)",
-        tickfont=dict(color="#ffffff"),
-        title_font=dict(color="#ffffff"),
-    )
-    fig.update_yaxes(
-        gridcolor="rgba(255,255,255,0.05)",
-        linecolor="rgba(255,255,255,0.05)",
-        tickfont=dict(color="#ffffff"),
-        title_font=dict(color="#ffffff"),
-    )
-    fig.update_traces(textfont=dict(color="#ffffff"))
+    fig.update_layout(**PLOTLY_LAYOUT)
+    fig.update_xaxes(gridcolor="rgba(255,255,255,0.05)", linecolor="rgba(255,255,255,0.05)")
+    fig.update_yaxes(gridcolor="rgba(255,255,255,0.05)", linecolor="rgba(255,255,255,0.05)")
     return fig
 
 
