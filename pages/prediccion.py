@@ -235,9 +235,55 @@ PLOTLY_DARK = dict(
 COLOR_SEQ = ["#4f8eff", "#a78bfa", "#34d399", "#f97316", "#fb7185", "#fbbf24"]
 
 def dark_fig(fig):
-    fig.update_layout(**PLOTLY_DARK)
-    fig.update_xaxes(gridcolor="rgba(255,255,255,1)", linecolor="rgba(255,255,255,1)")
-    fig.update_yaxes(gridcolor="rgba(255,255,255,1)", linecolor="rgba(255,255,255,1)")
+
+    fig.update_layout(
+        **PLOTLY_DARK,
+
+        font=dict(
+            color="#ffffff"
+        ),
+
+        title_font=dict(
+            color="#ffffff"
+        ),
+
+        legend=dict(
+            font=dict(color="#ffffff"),
+            bgcolor="rgba(22,25,32,0.8)",
+            bordercolor="rgba(255,255,255,0.07)",
+            borderwidth=1
+        ),
+
+        xaxis=dict(
+            tickfont=dict(color="#ffffff"),
+            titlefont=dict(color="#ffffff")
+        ),
+
+        yaxis=dict(
+            tickfont=dict(color="#ffffff"),
+            titlefont=dict(color="#ffffff")
+        ),
+
+        coloraxis_colorbar=dict(
+            tickfont=dict(color="#ffffff"),
+            titlefont=dict(color="#ffffff")
+        )
+    )
+
+    fig.update_xaxes(
+        gridcolor="rgba(255,255,255,0.05)",
+        linecolor="rgba(255,255,255,0.05)",
+        tickfont=dict(color="#ffffff"),
+        title_font=dict(color="#ffffff")
+    )
+
+    fig.update_yaxes(
+        gridcolor="rgba(255,255,255,0.05)",
+        linecolor="rgba(255,255,255,0.05)",
+        tickfont=dict(color="#ffffff"),
+        title_font=dict(color="#ffffff")
+    )
+
     return fig
 
 def sec(title: str):
