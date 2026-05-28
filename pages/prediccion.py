@@ -637,6 +637,8 @@ def show_prediccion():
                 )
             )
 
+            st.plotly_chart(fig_seg, use_container_width=True)
+
         st.plotly_chart(fig_seg, use_container_width=True)
 
             if "tipo_zona" in df_fid.columns:
