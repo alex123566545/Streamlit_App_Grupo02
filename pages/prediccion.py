@@ -40,20 +40,18 @@ PREDICCION_CSS = """
 
     /* Cards de segmento */
     .seg-card {
-        background: #1c1f2b !important;
-        border: 1px solid rgba(255,255,255,0.08) !important;
-        border-radius: 14px !important;
-        padding: 1.25rem 1.5rem !important;
-        margin-bottom: 0.75rem !important;
+        background: #1c1f2b;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 14px;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 0.75rem;
         transition: all 0.2s ease;
     }
-    .seg-card:hover { border-color: rgba(79,142,255,0.25) !important; transform: translateY(-1px); }
-    
-    /* Forzar los textos internos a blanco puro */
-    .seg-label { font-size: 0.72rem !important; color: #ffffff !important; text-transform: uppercase !important; letter-spacing: 0.09em !important; font-weight: 600 !important; margin-bottom: 0.3rem !important; }
-    .seg-value { font-family: 'Syne', sans-serif !important; font-size: 1.5rem !important; font-weight: 800 !important; line-height: 1 !important; }
-    .seg-sub   { font-size: 0.8rem !important; color: #e2e8f0 !important; margin-top: 0.25rem !important; }
-    
+    .seg-card:hover { border-color: rgba(79,142,255,0.25); transform: translateY(-1px); }
+    .seg-label { font-size: 0.72rem; color: #ffffff; text-transform: uppercase; letter-spacing: 0.09em; font-weight: 600; margin-bottom: 0.3rem; }
+    .seg-value { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 800; color: #ffffff; line-height: 1; }
+    .seg-sub   { font-size: 0.8rem; color: #ffffff; margin-top: 0.25rem; }
+
     /* Selectbox oscuro */
     div[data-baseweb="select"] > div {
         background: #1c1f2b !important;
@@ -652,34 +650,45 @@ def show_prediccion():
             k3.markdown(f'<div class="seg-card"><div class="seg-label">Productos baja demanda</div><div class="seg-value" style="color:#fb7185">{baja}</div><div class="seg-sub">Demanda promedio < {p33:.1f} uds</div></div>', unsafe_allow_html=True)
 
             fig_seg = px.bar(
-                demanda_prod.head(15),
-                x="producto", y="promedio",
-                color="Segmento",
-                color_discrete_map={
-                    "🟢 Alta demanda":   "#34d399",
-                    "🟡 Demanda media":  "#fbbf24",
-                    "🔴 Baja demanda":   "#fb7185",
-                },
-                text_auto=".1f",
-                title="Demanda promedio por producto (top 15)",
-            )
-            fig_seg = dark_fig(fig_seg)
-            fig_seg.update_layout(
-                height=380, 
-                xaxis_tickangle=-35,
-                title=dict(text="Demanda promedio por producto (top 15)", font=dict(color="white")),
-                font=dict(color="white"),
-                xaxis=dict(
-                    tickfont=dict(color="white"),
-                    title=dict(text="Producto", font=dict(color="white"))
-                ),
-                yaxis=dict(
-                    tickfont=dict(color="white"),
-                    title=dict(text="Promedio", font=dict(color="white"))
-                )
-            )
-            fig_seg.update_traces(textfont=dict(color="white"), textposition="outside")
-            st.plotly_chart(fig_seg, use_container_width=True)
+                        demanda_prod.head(15),
+                        x="producto", y="promedio",
+                        color="Segmento",
+                        color_discrete_map={
+                            "🟢 Alta demanda":   "#34d399",
+                            "🟡 Demanda media":  "#fbbf24",
+                            "🔴 Baja demanda":   "#fb7185",
+                        },
+                        text_auto=".1f",
+                        title="Demanda promedio por producto (top 15)",
+                    )
+                    fig_seg = dark_fig(fig_seg)
+                    fig_seg.update_layout(
+                        height=380, 
+                        xaxis_tickangle=-35,
+                        title=dict(text="Demanda promedio por producto (top 15)", font=dict(color="white")),
+                        font=dict(color="white"),
+                        
+                        # === AQUÍ FORZAMOS EL RECUADRO DE LA LEYENDA A BLANCO ===
+                        legend=dict(
+                            font=dict(color="white") # Color de "Alta demanda", "Demanda media", etc.
+                        ),
+                        legend_title=dict(
+                            text="Segmento",
+                            font=dict(color="white") # Color del título "Segmento"
+                        ),
+                        # ========================================================
+                        
+                        xaxis=dict(
+                            tickfont=dict(color="white"),
+                            title=dict(text="Producto", font=dict(color="white"))
+                        ),
+                        yaxis=dict(
+                            tickfont=dict(color="white"),
+                            title=dict(text="Promedio", font=dict(color="white"))
+                        )
+                    )
+                    fig_seg.update_traces(textfont=dict(color="white"), textposition="outside")
+                    st.plotly_chart(fig_seg, use_container_width=True)
 
             # =========================================================
             # 2. GRÁFICO: MAPA DE PREFERENCIA (HEATMAP)
