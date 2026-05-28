@@ -450,24 +450,33 @@ def show_prediccion():
                         .sort_values("Importancia", ascending=False)
                         .head(10)
                     )
-                    fig_imp = dark_fig(px.bar(
+                    
+                    # 1. Creamos el gráfico base
+                    fig_imp = px.bar(
                         imp_df, x="Variable", y="Importancia", text_auto=True,
                         color="Importancia", color_continuous_scale="Blues",
-                    ))
+                    )
                     
-                    # --- Modificaciones para las letras blancas ---
+                    # 2. Le aplicas tu función oscura
+                    fig_imp = dark_fig(fig_imp)
+                    
+                    # 3. FORZAMOS el color blanco AL FINAL (así pisamos cualquier config previa)
                     fig_imp.update_layout(
                         height=350, 
                         coloraxis_showscale=False,
-                        font=dict(color="#FFFFFF")  # Hace blanca la fuente de los ejes, títulos, etc.
+                        font=dict(color="white"),      # Forzar texto de ejes a blanco
+                        title_font=dict(color="white") # Forzar título a blanco (si hubiera)
                     )
-                    # Hace que el texto automático DENTRO o SOBRE las barras también sea blanco
-                    fig_imp.update_traces(textfont=dict(color="#FFFFFF"), textposition="outside") 
-                    # -----------------------------------------------
+                    
+                    # Forzar el texto de las barras a blanco y asegurar que sea visible
+                    fig_imp.update_traces(
+                        textfont=dict(color="white"), 
+                        textposition="outside"
+                    ) 
 
                     st.plotly_chart(fig_imp, use_container_width=True)
                 except Exception as e:
-                    st.caption(f"Importancia no disponible: {e}")                
+                    st.caption(f"Importancia no disponible: {e}")               
 
     # ═══════════════════════════════════════════════════════
     # TAB 2 — HISTÓRICO
