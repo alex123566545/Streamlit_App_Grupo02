@@ -615,6 +615,9 @@ def show_prediccion():
         else:
             df_fid = historico_df.copy()
 
+            # =========================================================
+            # 1. GRÁFICO: SEGMENTACIÓN DE DEMANDA POR PRODUCTO
+            # =========================================================
             sec("📊 Segmentación de demanda por producto")
 
             demanda_prod = (
@@ -646,7 +649,7 @@ def show_prediccion():
             k2.markdown(f'<div class="seg-card"><div class="seg-label">Productos demanda media</div><div class="seg-value" style="color:#fbbf24">{media}</div><div class="seg-sub">Entre {p33:.1f} y {p66:.1f} uds</div></div>', unsafe_allow_html=True)
             k3.markdown(f'<div class="seg-card"><div class="seg-label">Productos baja demanda</div><div class="seg-value" style="color:#fb7185">{baja}</div><div class="seg-sub">Demanda promedio < {p33:.1f} uds</div></div>', unsafe_allow_html=True)
 
-            fig_seg = dark_fig(px.bar(
+            fig_seg = px.bar(
                 demanda_prod.head(15),
                 x="producto", y="promedio",
                 color="Segmento",
@@ -657,10 +660,28 @@ def show_prediccion():
                 },
                 text_auto=".1f",
                 title="Demanda promedio por producto (top 15)",
-            ))
-            fig_seg.update_layout(height=380, xaxis_tickangle=-35)
+            )
+            fig_seg = dark_fig(fig_seg)
+            fig_seg.update_layout(
+                height=380, 
+                xaxis_tickangle=-35,
+                title=dict(text="Demanda promedio por producto (top 15)", font=dict(color="white")),
+                font=dict(color="white"),
+                xaxis=dict(
+                    tickfont=dict(color="white"),
+                    title=dict(text="Producto", font=dict(color="white"))
+                ),
+                yaxis=dict(
+                    tickfont=dict(color="white"),
+                    title=dict(text="Promedio", font=dict(color="white"))
+                )
+            )
+            fig_seg.update_traces(textfont=dict(color="white"), textposition="outside")
             st.plotly_chart(fig_seg, use_container_width=True)
 
+            # =========================================================
+            # 2. GRÁFICO: MAPA DE PREFERENCIA (HEATMAP)
+            # =========================================================
             if "tipo_zona" in df_fid.columns:
                 sec("🗺️ Mapa de preferencia: Producto × Zona")
                 st.caption("Intensidad = cantidad predicha promedio. Identifica qué productos son más demandados por zona.")
@@ -685,12 +706,22 @@ def show_prediccion():
                 fig_heat.update_layout(
                     **PLOTLY_DARK,
                     height=max(300, len(heatmap_df) * 28),
-                    title="Demanda promedio por producto y zona",
-                    xaxis_title="Zona",
-                    yaxis_title="Producto",
+                    title=dict(text="Demanda promedio por producto y zona", font=dict(color="white")),
+                    font=dict(color="white"),
+                    xaxis=dict(
+                        tickfont=dict(color="white"),
+                        title=dict(text="Zona", font=dict(color="white"))
+                    ),
+                    yaxis=dict(
+                        tickfont=dict(color="white"),
+                        title=dict(text="Producto", font=dict(color="white"))
+                    )
                 )
                 st.plotly_chart(fig_heat, use_container_width=True)
 
+            # =========================================================
+            # 3. GRÁFICO: COMBINACIONES MÁS RECURRENTES
+            # =========================================================
             if "tipo_promocion" in df_fid.columns and "tipo_zona" in df_fid.columns:
                 sec("🔁 Combinaciones más recurrentes (proxy de fidelización)")
                 st.caption(
@@ -713,7 +744,7 @@ def show_prediccion():
 
                 st.dataframe(combos, use_container_width=True, hide_index=True)
 
-                fig_combo = dark_fig(px.bar(
+                fig_combo = px.bar(
                     combos, x="Demanda total",
                     y=combos["producto"] + " · " + combos["tipo_zona"],
                     orientation="h",
@@ -721,14 +752,28 @@ def show_prediccion():
                     color_continuous_scale="Blues",
                     text_auto=True,
                     title="Top 10 combinaciones por demanda acumulada",
-                ))
+                )
+                fig_combo = dark_fig(fig_combo)
                 fig_combo.update_layout(
                     height=400,
-                    yaxis_title="",
                     coloraxis_showscale=False,
+                    title=dict(text="Top 10 combinaciones por demanda acumulada", font=dict(color="white")),
+                    font=dict(color="white"),
+                    xaxis=dict(
+                        tickfont=dict(color="white"),
+                        title=dict(text="Demanda total", font=dict(color="white"))
+                    ),
+                    yaxis=dict(
+                        tickfont=dict(color="white"),
+                        title=dict(text="", font=dict(color="white"))
+                    )
                 )
+                fig_combo.update_traces(textfont=dict(color="white"), textposition="outside")
                 st.plotly_chart(fig_combo, use_container_width=True)
 
+            # =========================================================
+            # 4. GRÁFICO: IMPACTO DE PROMOCIONES
+            # =========================================================
             if "tipo_promocion" in df_fid.columns:
                 sec("🏷️ Impacto de promociones en la demanda")
                 promo_df = (
@@ -739,16 +784,30 @@ def show_prediccion():
                     .sort_values("Demanda promedio", ascending=False)
                 )
 
-                fig_promo = dark_fig(px.bar(
+                fig_promo = px.bar(
                     promo_df, x="tipo_promocion", y="Demanda promedio",
                     color="Demanda promedio",
                     color_continuous_scale="Purples",
                     text_auto=".1f",
                     title="Demanda promedio según tipo de promoción",
-                ))
-                fig_promo.update_layout(height=320, coloraxis_showscale=False, xaxis_title="Tipo de promoción")
+                )
+                fig_promo = dark_fig(fig_promo)
+                fig_promo.update_layout(
+                    height=320, 
+                    coloraxis_showscale=False, 
+                    title=dict(text="Demanda promedio según tipo de promoción", font=dict(color="white")),
+                    font=dict(color="white"),
+                    xaxis=dict(
+                        tickfont=dict(color="white"),
+                        title=dict(text="Tipo de promoción", font=dict(color="white"))
+                    ),
+                    yaxis=dict(
+                        tickfont=dict(color="white"),
+                        title=dict(text="Demanda promedio", font=dict(color="white"))
+                    )
+                )
+                fig_promo.update_traces(textfont=dict(color="white"), textposition="outside")
                 st.plotly_chart(fig_promo, use_container_width=True)
-
     # ═══════════════════════════════════════════════════════
     # TAB 4 — ANÁLISIS ECONÓMICO
     # ═══════════════════════════════════════════════════════
