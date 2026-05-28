@@ -235,58 +235,9 @@ PLOTLY_DARK = dict(
 COLOR_SEQ = ["#4f8eff", "#a78bfa", "#34d399", "#f97316", "#fb7185", "#fbbf24"]
 
 def dark_fig(fig):
-
-    fig.update_layout(
-        **PLOTLY_DARK,
-
-        # Texto general
-        font=dict(
-            family="DM Sans",
-            color="#ffffff",
-            size=13
-        ),
-
-        # Títulos
-        title=dict(
-            font=dict(
-                color="#ffffff",
-                size=18
-            )
-        ),
-
-        # Leyenda
-        legend=dict(
-            font=dict(color="#ffffff"),
-            bgcolor="rgba(22,25,32,0.8)",
-            bordercolor="rgba(255,255,255,0.07)",
-            borderwidth=1
-        ),
-
-        # Hover
-        hoverlabel=dict(
-            font=dict(color="#ffffff"),
-            bgcolor="#1c1f2b"
-        ),
-    )
-
-    # EJE X
-    fig.update_xaxes(
-        gridcolor="rgba(255,255,255,0.08)",
-        linecolor="rgba(255,255,255,0.15)",
-        tickfont=dict(color="#ffffff"),
-        title_font=dict(color="#ffffff"),
-        zerolinecolor="rgba(255,255,255,0.10)"
-    )
-
-    # EJE Y
-    fig.update_yaxes(
-        gridcolor="rgba(255,255,255,0.08)",
-        linecolor="rgba(255,255,255,0.15)",
-        tickfont=dict(color="#ffffff"),
-        title_font=dict(color="#ffffff"),
-        zerolinecolor="rgba(255,255,255,0.10)"
-    )
-
+    fig.update_layout(**PLOTLY_DARK)
+    fig.update_xaxes(gridcolor="rgba(255,255,255,1)", linecolor="rgba(255,255,255,1)")
+    fig.update_yaxes(gridcolor="rgba(255,255,255,1)", linecolor="rgba(255,255,255,1)")
     return fig
 
 def sec(title: str):
