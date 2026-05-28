@@ -436,10 +436,14 @@ def show_prediccion():
                 # 2. Le aplicas tu función oscura
                 fig_sim = dark_fig(fig_sim)
 
-                # 3. Forzamos los textos y títulos de los ejes a blanco con la sintaxis correcta
+                # 3. Forzamos los textos, títulos de los ejes Y el título principal a blanco
                 fig_sim.update_layout(
                     height=300,
-                    font=dict(color="white"), # Color global (incluye el título del gráfico)
+                    title=dict(
+                        text="Curva ingreso vs precio", 
+                        font=dict(color="white")
+                    ),
+                    font=dict(color="white"),
                     xaxis=dict(
                         tickfont=dict(color="white"),
                         title=dict(text="Precio (S/)", font=dict(color="white"))
@@ -450,7 +454,7 @@ def show_prediccion():
                     )
                 )
 
-                # 4. Aseguramos que las fuentes de cualquier etiqueta adicional en las líneas sean blancas
+                # 4. Aseguramos que las fuentes de cualquier etiqueta adicional sean blancas
                 fig_sim.update_traces(textfont=dict(color="white"))
 
                 st.plotly_chart(fig_sim, use_container_width=True)
