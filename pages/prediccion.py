@@ -40,18 +40,20 @@ PREDICCION_CSS = """
 
     /* Cards de segmento */
     .seg-card {
-        background: #1c1f2b;
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 14px;
-        padding: 1.25rem 1.5rem;
-        margin-bottom: 0.75rem;
+        background: #1c1f2b !important;
+        border: 1px solid rgba(255,255,255,0.08) !important;
+        border-radius: 14px !important;
+        padding: 1.25rem 1.5rem !important;
+        margin-bottom: 0.75rem !important;
         transition: all 0.2s ease;
     }
-    .seg-card:hover { border-color: rgba(79,142,255,0.25); transform: translateY(-1px); }
-    .seg-label { font-size: 0.72rem; color: #ffffff; text-transform: uppercase; letter-spacing: 0.09em; font-weight: 600; margin-bottom: 0.3rem; }
-    .seg-value { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 800; color: #ffffff; line-height: 1; }
-    .seg-sub   { font-size: 0.8rem; color: #ffffff; margin-top: 0.25rem; }
-
+    .seg-card:hover { border-color: rgba(79,142,255,0.25) !important; transform: translateY(-1px); }
+    
+    /* Forzar los textos internos a blanco puro */
+    .seg-label { font-size: 0.72rem !important; color: #ffffff !important; text-transform: uppercase !important; letter-spacing: 0.09em !important; font-weight: 600 !important; margin-bottom: 0.3rem !important; }
+    .seg-value { font-family: 'Syne', sans-serif !important; font-size: 1.5rem !important; font-weight: 800 !important; line-height: 1 !important; }
+    .seg-sub   { font-size: 0.8rem !important; color: #e2e8f0 !important; margin-top: 0.25rem !important; }
+    
     /* Selectbox oscuro */
     div[data-baseweb="select"] > div {
         background: #1c1f2b !important;
