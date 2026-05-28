@@ -393,43 +393,16 @@ def show_prediccion():
                     factores.append("✔ Precio competitivo")
                 st.info("  ·  ".join(factores) if factores else "No se detectaron factores favorables adicionales.")
 
-               sec("📅 Proyección temporal (unidades)")
-
-                    proy_df = pd.DataFrame({
-                        "Periodo": ["Día", "Semana", "Mes"],
-                        "Cantidad": [pred_dia, pred_sem, pred_mes],
-                    })
-
-                    fig_proy = dark_fig(
-
-                        px.bar(
-                            proy_df,
-                            x="Periodo",
-                            y="Cantidad",
-                            text="Cantidad",
-                            color="Periodo",
-                            color_discrete_sequence=[
-                                "#4f8eff",
-                                "#a78bfa",
-                                "#34d399"
-                            ],
-                        )
-
-                    )
-
-                    fig_proy.update_traces(
-                        textposition="outside"
-                    )
-
-                    fig_proy.update_layout(
-                        showlegend=False,
-                        height=300
-                    )
-
-                    st.plotly_chart(
-                        fig_proy,
-                        use_container_width=True
-                    )
+                sec("📅 Proyección temporal (unidades)")
+                proy_df = pd.DataFrame({
+                    "Periodo":  ["Día", "Semana", "Mes"],
+                    "Cantidad": [pred_dia, pred_sem, pred_mes],
+                })
+                fig_proy = dark_fig(px.bar(
+                    proy_df, x="Periodo", y="Cantidad", text_auto=True,
+                    color="Periodo",
+                    color_discrete_sequence=["#4f8eff", "#a78bfa", "#34d399"],
+                ))
                 fig_proy.update_layout(showlegend=False, height=300)
                 st.plotly_chart(fig_proy, use_container_width=True)
 
