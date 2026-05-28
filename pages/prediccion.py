@@ -455,7 +455,23 @@ def show_prediccion():
                         imp_df, x="Variable", y="Importancia", text_auto=True,
                         color="Importancia", color_continuous_scale="Blues",
                     ))
-                    fig_imp.update_layout(height=350, coloraxis_showscale=False)
+                    fig_imp.update_layout(
+                        height=350,
+                        coloraxis_showscale=False,
+                        title_font_color="#ffffff",
+                        font=dict(color="#ffffff"),
+                        xaxis=dict(
+                            tickfont=dict(color="#ffffff"),
+                            title_font=dict(color="#ffffff"),
+                        ),
+                        yaxis=dict(
+                            tickfont=dict(color="#ffffff"),
+                            title_font=dict(color="#ffffff"),
+                        ),
+                    )
+                    fig_imp.update_traces(
+                        textfont=dict(color="#ffffff"),
+                    )                    
                     st.plotly_chart(fig_imp, use_container_width=True)
                 except Exception as e:
                     st.caption(f"Importancia no disponible: {e}")
