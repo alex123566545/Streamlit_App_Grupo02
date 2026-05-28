@@ -444,14 +444,31 @@ def show_prediccion():
                     })
                 sim_df = pd.DataFrame(sims)
                 st.dataframe(sim_df, use_container_width=True, hide_index=True)
-
                 fig_sim = dark_fig(px.line(
-                    sim_df, x="Precio (S/)", y="Ingreso (S/)",
-                    markers=True, title="Curva ingreso vs precio",
-                    color_discrete_sequence=["#4f8eff"],
-                ))
-                fig_sim.update_layout(height=300)
-                st.plotly_chart(fig_sim, use_container_width=True)
+                                    sim_df, x="Precio (S/)", y="Ingreso (S/)",
+                                    markers=True, title="Curva ingreso vs precio",
+                                    color_discrete_sequence=["#4f8eff"],
+                                ))
+
+                                fig_sim.update_layout(
+                                    height=300,
+                                    title_font_color="#ffffff",
+                                    font=dict(color="#ffffff"),
+                                    xaxis=dict(
+                                        tickfont=dict(color="#ffffff"),
+                                        title_font=dict(color="#ffffff"),
+                                    ),
+                                    yaxis=dict(
+                                        tickfont=dict(color="#ffffff"),
+                                        title_font=dict(color="#ffffff"),
+                                    ),
+                                )
+
+                                fig_sim.update_traces(
+                                    textfont=dict(color="#ffffff"),
+                                )
+
+                                st.plotly_chart(fig_sim, use_container_width=True)
 
                 sec("💡 Recomendación comercial")
                 mejor = sim_df.loc[sim_df["Ingreso (S/)"].idxmax()]
