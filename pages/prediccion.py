@@ -692,7 +692,7 @@ def show_prediccion():
                  )
                 fig_heat.update_traces(
                     textfont=dict(
-                        color="#ffffff"
+                        color="#000000"
                     ),
 
                     colorbar=dict(
