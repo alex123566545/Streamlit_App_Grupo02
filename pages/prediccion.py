@@ -794,6 +794,18 @@ def show_prediccion():
                     title="Distribución de ingresos por zona",
                     hole=0.45,
                 ))
+                # ← AGREGA ESTO para cambiar el color de las letras
+                fig_zona.update_layout(
+                    height=360,
+                    legend=dict(
+                        font=dict(
+                            color="#ffffff",   # ← cambia aquí el color que quieras
+                            size=14,
+                        )
+                    )
+                )
+                st.plotly_chart(fig_zona, use_container_width=True)
+                
                 fig_zona.update_layout(height=360)
                 st.plotly_chart(fig_zona, use_container_width=True)
 
