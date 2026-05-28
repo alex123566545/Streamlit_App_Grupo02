@@ -262,8 +262,25 @@ def show_dashboard():
 
     if fig:
         apply_layout(fig)
+        fig.update_layout(
+            title_font_color="#ffffff",
+            font=dict(color="#ffffff"),
+            xaxis=dict(
+                tickfont=dict(color="#ffffff"),
+                title_font=dict(color="#ffffff"),
+            ),
+            yaxis=dict(
+                tickfont=dict(color="#ffffff"),
+                title_font=dict(color="#ffffff"),
+            ),
+            legend=dict(
+                font=dict(color="#ffffff"),
+            ),
+        )
+        fig.update_traces(
+            textfont=dict(color="#ffffff"),
+        )
         st.plotly_chart(fig, use_container_width=True)
-
     # ── Tabla ─────────────────────────────────────────────────────────────────
     st.markdown(
         '<div class="section-header"><div class="dot"></div>'
