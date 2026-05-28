@@ -303,228 +303,494 @@ def show_prediccion():
     ])
 
     # ═══════════════════════════════════════════════════════
-    # TAB 1 — PREDICCIÓN
-    # ═══════════════════════════════════════════════════════
-    with tab_pred:
+# TAB 1 — PREDICCIÓN
+# ═══════════════════════════════════════════════════════
+with tab_pred:
 
-        st.subheader("⚙️ Parámetros de la transacción")
-        col_l, col_r = st.columns([1, 2])
+    st.subheader("⚙️ Parámetros de la transacción")
+    col_l, col_r = st.columns([1, 2])
 
-        with col_l:
-            fecha = st.date_input("📅 Fecha de inicio", value=date.today())
-            hora  = 12
+    with col_l:
+        fecha = st.date_input("📅 Fecha de inicio", value=date.today())
+        hora = 12
 
-            producto = st.selectbox("🛒 Producto", productos_df["producto"].unique())
-            categoria_producto = productos_df.loc[
-                productos_df["producto"] == producto, "categoria_producto"
-            ].values[0]
-            st.caption(f"Categoría: **{categoria_producto}**")
+        producto = st.selectbox(
+            "🛒 Producto",
+            productos_df["producto"].dropna().unique()
+        )
 
-            precio_promedio = float(precios_df.loc[
-                precios_df["producto"] == producto, "precio_promedio"
-            ].values[0])
-            st.caption(f"💰 Precio histórico promedio: S/ {precio_promedio}")
-            precio = st.slider(
-                "💲 Precio unitario (S/)",
-                min_value=1.0, max_value=30.0,
-                value=precio_promedio, step=0.10,
+        categoria_producto = productos_df.loc[
+            productos_df["producto"] == producto,
+            "categoria_producto"
+        ].iloc[0]
+
+        st.caption(f"Categoría: **{categoria_producto}**")
+
+        precio_data = precios_df.loc[
+            precios_df["producto"] == producto,
+            "precio_promedio"
+        ]
+
+        precio_promedio = float(precio_data.iloc[0]) if not precio_data.empty else 10.0
+
+        st.caption(f"💰 Precio histórico promedio: S/ {precio_promedio}")
+
+        precio = st.slider(
+            "💲 Precio unitario (S/)",
+            min_value=1.0,
+            max_value=30.0,
+            value=float(precio_promedio),
+            step=0.10,
+        )
+
+        tipo_promocion = st.selectbox(
+            "🏷️ Tipo de promoción",
+            promociones_df["tipo_promocion"].dropna().unique()
+        )
+
+        ubicacion_tienda = st.selectbox(
+            "📍 Ubicación de tienda",
+            tiendas_df["ubicacion_tienda"].dropna().unique()
+        )
+
+        zona_data = tiendas_df.loc[
+            tiendas_df["ubicacion_tienda"] == ubicacion_tienda,
+            "tipo_zona"
+        ]
+
+        tipo_zona = zona_data.iloc[0] if not zona_data.empty else "Residencial"
+
+        st.caption(f"Zona: **{tipo_zona}**")
+
+        clima = st.selectbox(
+            "🌤️ Clima",
+            climas_df["clima"].dropna().unique()
+        )
+
+    with col_r:
+
+        predecir = st.button(
+            "🔮 Generar Predicción",
+            use_container_width=True
+        )
+
+        if predecir:
+
+            # =====================================================
+            # PREDICCIÓN PRINCIPAL
+            # =====================================================
+            data_dia = build_features(
+                fecha,
+                hora,
+                producto,
+                categoria_producto,
+                precio,
+                tipo_promocion,
+                tipo_zona,
+                ubicacion_tienda,
+                clima
             )
 
-            tipo_promocion   = st.selectbox("🏷️ Tipo de promoción", promociones_df["tipo_promocion"].unique())
-            ubicacion_tienda = st.selectbox("📍 Ubicación de tienda", tiendas_df["ubicacion_tienda"].unique())
-            tipo_zona = tiendas_df.loc[
-                tiendas_df["ubicacion_tienda"] == ubicacion_tienda, "tipo_zona"
-            ].values[0]
-            st.caption(f"Zona: **{tipo_zona}**")
-            clima = st.selectbox("🌤️ Clima", climas_df["clima"].unique())
+            data_dia = data_dia.reindex(columns=features, fill_value=0)
 
-        with col_r:
-            predecir = st.button("🔮 Generar Predicción", use_container_width=True)
+            pred_raw = model.predict(data_dia)[0]
 
-            if predecir:
-                data_dia = build_features(
-                    fecha, hora, producto, categoria_producto,
-                    precio, tipo_promocion, tipo_zona, ubicacion_tienda, clima
-                )[features]
-                pred_raw = model.predict(data_dia)[0]
-                pred_dia = max(1, round(aplicar_elasticidad(pred_raw, precio, precio_promedio)))
-
-                pred_sem, detalle_sem = predecir_rango(
-                    model, features, fecha, 7, hora, producto, categoria_producto,
-                    precio, tipo_promocion, tipo_zona, ubicacion_tienda, clima, precio_promedio,
+            pred_dia = max(
+                1,
+                round(
+                    aplicar_elasticidad(
+                        pred_raw,
+                        precio,
+                        precio_promedio
+                    )
                 )
-                pred_mes, detalle_mes = predecir_rango(
-                    model, features, fecha, 30, hora, producto, categoria_producto,
-                    precio, tipo_promocion, tipo_zona, ubicacion_tienda, clima, precio_promedio,
-                )
+            )
 
-                ingreso_dia = round(pred_dia * precio, 2)
-                ingreso_sem = round(pred_sem * precio, 2)
-                ingreso_mes = round(pred_mes * precio, 2)
+            # =====================================================
+            # PREDICCIÓN SEMANA / MES
+            # =====================================================
+            pred_sem, detalle_sem = predecir_rango(
+                model,
+                features,
+                fecha,
+                7,
+                hora,
+                producto,
+                categoria_producto,
+                precio,
+                tipo_promocion,
+                tipo_zona,
+                ubicacion_tienda,
+                clima,
+                precio_promedio,
+            )
 
-                sec("📊 Resultados predictivos")
-                c1, c2, c3 = st.columns(3)
-                c1.metric("Predicción diaria",  f"{pred_dia} uds")
-                c2.metric("Predicción semanal", f"{pred_sem} uds")
-                c3.metric("Predicción mensual", f"{pred_mes} uds")
-                c1.metric("Ingreso diario",     f"S/ {ingreso_dia}")
-                c2.metric("Ingreso semanal",    f"S/ {ingreso_sem}")
-                c3.metric("Ingreso mensual",    f"S/ {ingreso_mes}")
+            pred_mes, detalle_mes = predecir_rango(
+                model,
+                features,
+                fecha,
+                30,
+                hora,
+                producto,
+                categoria_producto,
+                precio,
+                tipo_promocion,
+                tipo_zona,
+                ubicacion_tienda,
+                clima,
+                precio_promedio,
+            )
 
-                label, nivel = demanda_badge(pred_dia)
-                st.markdown(
-                    f'**Nivel de demanda:** <span class="badge-{nivel}">{label}</span>',
-                    unsafe_allow_html=True,
-                )
+            ingreso_dia = round(pred_dia * precio, 2)
+            ingreso_sem = round(pred_sem * precio, 2)
+            ingreso_mes = round(pred_mes * precio, 2)
 
-                sec("🧠 Factores detectados")
-                factores = []
-                if _lower(tipo_promocion) not in ("ninguno", "none", "sin promoción"):
-                    factores.append("✔ Promoción activa")
-                if 12 <= hora <= 14 or 18 <= hora <= 21:
-                    factores.append("✔ Hora pico")
-                if tipo_zona == "Comercial":
-                    factores.append("✔ Zona comercial")
-                if _lower(clima) == "soleado":
-                    factores.append("✔ Clima favorable")
-                if fecha.weekday() >= 5:
-                    factores.append("✔ Fin de semana")
-                if precio < precio_promedio:
-                    factores.append("✔ Precio competitivo")
-                st.info("  ·  ".join(factores) if factores else "No se detectaron factores favorables adicionales.")
+            # =====================================================
+            # RESULTADOS
+            # =====================================================
+            sec("📊 Resultados predictivos")
 
-                sec("📅 Proyección temporal (unidades)")
-                proy_df = pd.DataFrame({
-                    "Periodo":  ["Día", "Semana", "Mes"],
-                    "Cantidad": [pred_dia, pred_sem, pred_mes],
-                })
-                fig_proy = dark_fig(px.bar(
-                    proy_df, x="Periodo", y="Cantidad", text_auto=True,
+            c1, c2, c3 = st.columns(3)
+
+            c1.metric("Predicción diaria", f"{pred_dia} uds")
+            c2.metric("Predicción semanal", f"{pred_sem} uds")
+            c3.metric("Predicción mensual", f"{pred_mes} uds")
+
+            c1.metric("Ingreso diario", f"S/ {ingreso_dia}")
+            c2.metric("Ingreso semanal", f"S/ {ingreso_sem}")
+            c3.metric("Ingreso mensual", f"S/ {ingreso_mes}")
+
+            # =====================================================
+            # DEMANDA
+            # =====================================================
+            label, nivel = demanda_badge(pred_dia)
+
+            st.markdown(
+                f'**Nivel de demanda:** <span class="badge-{nivel}">{label}</span>',
+                unsafe_allow_html=True,
+            )
+
+            # =====================================================
+            # FACTORES
+            # =====================================================
+            sec("🧠 Factores detectados")
+
+            factores = []
+
+            if _lower(tipo_promocion) not in (
+                "ninguno",
+                "none",
+                "sin promoción"
+            ):
+                factores.append("✔ Promoción activa")
+
+            if 12 <= hora <= 14 or 18 <= hora <= 21:
+                factores.append("✔ Hora pico")
+
+            if _lower(tipo_zona) == "comercial":
+                factores.append("✔ Zona comercial")
+
+            if _lower(clima) == "soleado":
+                factores.append("✔ Clima favorable")
+
+            if fecha.weekday() >= 5:
+                factores.append("✔ Fin de semana")
+
+            if precio < precio_promedio:
+                factores.append("✔ Precio competitivo")
+
+            st.info(
+                "  ·  ".join(factores)
+                if factores
+                else "No se detectaron factores favorables adicionales."
+            )
+
+            # =====================================================
+            # PROYECCIÓN
+            # =====================================================
+            sec("📅 Proyección temporal (unidades)")
+
+            proy_df = pd.DataFrame({
+                "Periodo": ["Día", "Semana", "Mes"],
+                "Cantidad": [pred_dia, pred_sem, pred_mes],
+            })
+
+            fig_proy = dark_fig(
+                px.bar(
+                    proy_df,
+                    x="Periodo",
+                    y="Cantidad",
+                    text_auto=True,
                     color="Periodo",
-                    color_discrete_sequence=["#4f8eff", "#a78bfa", "#34d399"],
-                ))
-                fig_proy.update_layout(showlegend=False, height=300)
-                st.plotly_chart(fig_proy, use_container_width=True)
+                    color_discrete_sequence=[
+                        "#4f8eff",
+                        "#a78bfa",
+                        "#34d399"
+                    ],
+                )
+            )
 
-                sec("🗓️ Detalle día a día — próximos 7 días")
-                st.caption("Cada día se predice de forma independiente con su propio contexto.")
-                det_df = pd.DataFrame(detalle_sem)
-                det_df["fecha"] = det_df["fecha"].astype(str)
-                det_df.columns = ["Fecha", "Día", "¿Finde?", "Unidades", "Ingreso (S/)"]
-                det_df["¿Finde?"] = det_df["¿Finde?"].map({True: "✅", False: "—"})
-                st.dataframe(det_df, hide_index=True, use_container_width=True)
+            fig_proy.update_layout(
+                showlegend=False,
+                height=300,
+            )
 
-                fig_det = dark_fig(px.bar(
-                    det_df, x="Fecha", y="Unidades",
+            fig_proy.update_traces(
+                textfont=dict(color="black")
+            )
+
+            st.plotly_chart(
+                fig_proy,
+                use_container_width=True
+            )
+
+            # =====================================================
+            # DETALLE SEMANAL
+            # =====================================================
+            sec("🗓️ Detalle día a día — próximos 7 días")
+
+            st.caption(
+                "Cada día se predice de forma independiente con su propio contexto."
+            )
+
+            det_df = pd.DataFrame(detalle_sem)
+
+            det_df["fecha"] = det_df["fecha"].astype(str)
+
+            det_df.columns = [
+                "Fecha",
+                "Día",
+                "¿Finde?",
+                "Unidades",
+                "Ingreso (S/)"
+            ]
+
+            det_df["¿Finde?"] = det_df["¿Finde?"].map({
+                True: "✅",
+                False: "—"
+            })
+
+            st.dataframe(
+                det_df,
+                hide_index=True,
+                use_container_width=True
+            )
+
+            fig_det = dark_fig(
+                px.bar(
+                    det_df,
+                    x="Fecha",
+                    y="Unidades",
                     color="¿Finde?",
-                    color_discrete_map={"✅": "#a78bfa", "—": "#4f8eff"},
+                    color_discrete_map={
+                        "✅": "#a78bfa",
+                        "—": "#4f8eff"
+                    },
                     text_auto=True,
                     title="Unidades por día (morado = fin de semana)",
-                ))
+                )
+            )
 
-                fig_det.update_layout(
-                    height=320,
-                    showlegend=False,
-                    title_font_color="#ffffff",
-                    font=dict(color="#ffffff"),
-                    xaxis=dict(
-                        tickfont=dict(color="#ffffff"),
-                        title_font=dict(color="#ffffff"),
-                    ),
-                    yaxis=dict(
-                        tickfont=dict(color="#ffffff"),
-                        title_font=dict(color="#ffffff"),
-                    ),
+            fig_det.update_layout(
+                height=320,
+                showlegend=False,
+            )
+
+            fig_det.update_traces(
+                textfont=dict(color="black")
+            )
+
+            st.plotly_chart(
+                fig_det,
+                use_container_width=True
+            )
+
+            # =====================================================
+            # HISTÓRICO
+            # =====================================================
+            sec("📈 Comparación con histórico")
+
+            hist_prod = historico_df[
+                historico_df["producto"] == _lower(producto)
+            ]
+
+            if not hist_prod.empty:
+
+                prom_hist = round(
+                    hist_prod["cantidad_predicha"].mean(),
+                    2
                 )
 
-                fig_det.update_traces(
-                    textfont=dict(color="#ffffff"),
+                variacion = round(
+                    ((pred_dia - prom_hist) / max(prom_hist, 1)) * 100,
+                    2
                 )
 
-                st.plotly_chart(fig_det, use_container_width=True)
+                h1, h2 = st.columns(2)
 
-                sec("📈 Comparación con histórico")
-                hist_prod = historico_df[historico_df["producto"] == _lower(producto)]
-                if not hist_prod.empty:
-                    prom_hist = round(hist_prod["cantidad_predicha"].mean(), 2)
-                    variacion = round(((pred_dia - prom_hist) / max(prom_hist, 1)) * 100, 2)
-                    h1, h2 = st.columns(2)
-                    h1.metric("Promedio histórico diario", prom_hist)
-                    h2.metric("Variación esperada", f"{variacion}%", delta=f"{variacion}%")
-                else:
-                    st.caption("Sin datos históricos para este producto.")
-
-                sec("💹 Simulación de escenarios de precio")
-                sims = []
-                for factor in [0.8, 0.9, 1.0, 1.1, 1.2]:
-                    p_sim = round(precio * factor, 2)
-                    d_sim = build_features(
-                        fecha, hora, producto, categoria_producto,
-                        p_sim, tipo_promocion, tipo_zona, ubicacion_tienda, clima
-                    )[features]
-                    pred_sim = max(1, round(aplicar_elasticidad(
-                        model.predict(d_sim)[0], p_sim, precio_promedio
-                    )))
-                    sims.append({
-                        "Escenario":     f"×{factor:.1f}",
-                        "Precio (S/)":   p_sim,
-                        "Demanda (uds)": pred_sim,
-                        "Ingreso (S/)":  round(pred_sim * p_sim, 2),
-                    })
-                sim_df = pd.DataFrame(sims)
-                st.dataframe(sim_df, use_container_width=True, hide_index=True)
-
-                fig_sim = dark_fig(px.line(
-                    sim_df, x="Precio (S/)", y="Ingreso (S/)",
-                    markers=True, title="Curva ingreso vs precio",
-                    color_discrete_sequence=["#4f8eff"],
-                ))
-
-                fig_sim.update_layout(
-                    height=300,
-                    title_font_color="#ffffff",
-                    font=dict(color="#ffffff"),
-                    xaxis=dict(
-                        tickfont=dict(color="#ffffff"),
-                        title_font=dict(color="#ffffff"),
-                    ),
-                    yaxis=dict(
-                        tickfont=dict(color="#ffffff"),
-                        title_font=dict(color="#ffffff"),
-                    ),
+                h1.metric(
+                    "Promedio histórico diario",
+                    prom_hist
                 )
 
-                fig_sim.update_traces(
-                    textfont=dict(color="#ffffff"),
+                h2.metric(
+                    "Variación esperada",
+                    f"{variacion}%",
+                    delta=f"{variacion}%"
                 )
 
-                st.plotly_chart(fig_sim, use_container_width=True)
-
-                sec("💡 Recomendación comercial")
-                mejor = sim_df.loc[sim_df["Ingreso (S/)"].idxmax()]
-                st.success(
-                    f"**Precio óptimo sugerido:** S/ {mejor['Precio (S/)']}\n\n"
-                    f"**Demanda esperada:** {mejor['Demanda (uds)']} unidades\n\n"
-                    f"**Ingreso estimado:** S/ {mejor['Ingreso (S/)']}"
+            else:
+                st.caption(
+                    "Sin datos históricos para este producto."
                 )
 
-                sec("⚙️ Variables más influyentes (Random Forest)")
-                try:
-                    importancias = model.named_steps["model"].feature_importances_
-                    feat_names   = model.named_steps["preprocess"].get_feature_names_out()
-                    imp_df = (
-                        pd.DataFrame({"Variable": feat_names, "Importancia": importancias})
-                        .sort_values("Importancia", ascending=False)
-                        .head(10)
+            # =====================================================
+            # SIMULACIÓN
+            # =====================================================
+            sec("💹 Simulación de escenarios de precio")
+
+            sims = []
+
+            for factor in [0.8, 0.9, 1.0, 1.1, 1.2]:
+
+                p_sim = round(precio * factor, 2)
+
+                d_sim = build_features(
+                    fecha,
+                    hora,
+                    producto,
+                    categoria_producto,
+                    p_sim,
+                    tipo_promocion,
+                    tipo_zona,
+                    ubicacion_tienda,
+                    clima
+                )
+
+                d_sim = d_sim.reindex(
+                    columns=features,
+                    fill_value=0
+                )
+
+                pred_sim = max(
+                    1,
+                    round(
+                        aplicar_elasticidad(
+                            model.predict(d_sim)[0],
+                            p_sim,
+                            precio_promedio
+                        )
                     )
-                    fig_imp = dark_fig(px.bar(
-                        imp_df, x="Variable", y="Importancia", text_auto=True,
-                        color="Importancia", color_continuous_scale="Blues",
-                    ))
-                    fig_imp.update_layout(height=350, coloraxis_showscale=False)
-                    st.plotly_chart(fig_imp, use_container_width=True)
-                except Exception as e:
-                    st.caption(f"Importancia no disponible: {e}")
+                )
+
+                sims.append({
+                    "Escenario": f"×{factor:.1f}",
+                    "Precio (S/)": p_sim,
+                    "Demanda (uds)": pred_sim,
+                    "Ingreso (S/)": round(pred_sim * p_sim, 2),
+                })
+
+            sim_df = pd.DataFrame(sims)
+
+            st.dataframe(
+                sim_df,
+                use_container_width=True,
+                hide_index=True
+            )
+
+            fig_sim = dark_fig(
+                px.line(
+                    sim_df,
+                    x="Precio (S/)",
+                    y="Ingreso (S/)",
+                    markers=True,
+                    title="Curva ingreso vs precio",
+                    color_discrete_sequence=["#4f8eff"],
+                )
+            )
+
+            fig_sim.update_layout(
+                height=300,
+            )
+
+            st.plotly_chart(
+                fig_sim,
+                use_container_width=True
+            )
+
+            # =====================================================
+            # RECOMENDACIÓN
+            # =====================================================
+            sec("💡 Recomendación comercial")
+
+            mejor = sim_df.loc[
+                sim_df["Ingreso (S/)"].idxmax()
+            ]
+
+            st.success(
+                f"**Precio óptimo sugerido:** S/ {mejor['Precio (S/)']}\n\n"
+                f"**Demanda esperada:** {mejor['Demanda (uds)']} unidades\n\n"
+                f"**Ingreso estimado:** S/ {mejor['Ingreso (S/)']}"
+            )
+
+            # =====================================================
+            # IMPORTANCIA VARIABLES
+            # =====================================================
+            sec("⚙️ Variables más influyentes (Random Forest)")
+
+            try:
+
+                importancias = model.named_steps[
+                    "model"
+                ].feature_importances_
+
+                feat_names = model.named_steps[
+                    "preprocess"
+                ].get_feature_names_out()
+
+                imp_df = pd.DataFrame({
+                    "Variable": feat_names,
+                    "Importancia": importancias
+                })
+
+                imp_df = (
+                    imp_df
+                    .sort_values(
+                        "Importancia",
+                        ascending=False
+                    )
+                    .head(10)
+                )
+
+                fig_imp = dark_fig(
+                    px.bar(
+                        imp_df,
+                        x="Variable",
+                        y="Importancia",
+                        text_auto=".2f",
+                        color="Importancia",
+                        color_continuous_scale="Blues",
+                    )
+                )
+
+                fig_imp.update_layout(
+                    height=350,
+                    coloraxis_showscale=False
+                )
+
+                fig_imp.update_traces(
+                    textfont=dict(color="black")
+                )
+
+                st.plotly_chart(
+                    fig_imp,
+                    use_container_width=True
+                )
+
+            except Exception as e:
+                st.caption(
+                    f"Importancia no disponible: {e}"
+                )
 
     # ═══════════════════════════════════════════════════════
     # TAB 2 — HISTÓRICO
