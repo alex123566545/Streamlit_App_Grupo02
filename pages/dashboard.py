@@ -174,10 +174,10 @@ def show_dashboard():
     else:
         df_temporal = df_filtrado.copy()
 
-    # ── KPIs ──────────────────────────────────────────────────────────────────
+    # ── KPIs ESTILIZADOS DIGITAL DASHBOARD ────────────────────────────────────
     st.markdown(
         '<div class="section-header"><div class="dot"></div>'
-        '<div class="section-title">Indicadores clave</div></div>',
+        '<div class="section-title">INDICADORES CLAVE DEL SISTEMA PREDICTIVO</div></div>',
         unsafe_allow_html=True
     )
 
@@ -190,27 +190,27 @@ def show_dashboard():
 
     k1, k2, k3, k4 = st.columns(4)
     with k1:
-        st.markdown(f'<div class="kpi-card"><div class="kpi-label">Total registros</div>'
+        st.markdown(f'<div class="kpi-card"><div class="kpi-label">📊 TOTAL REGISTROS</div>'
                     f'<div class="kpi-value accent">{len(df_filtrado):,}</div></div>',
                     unsafe_allow_html=True)
     with k2:
-        st.markdown(f'<div class="kpi-card"><div class="kpi-label">Cantidad predicha total</div>'
+        st.markdown(f'<div class="kpi-card"><div class="kpi-label">📉 CANTIDAD PREDICHA TOTAL</div>'
                     f'<div class="kpi-value">{total_pred:,}</div></div>',
                     unsafe_allow_html=True)
     with k3:
-        st.markdown(f'<div class="kpi-card"><div class="kpi-label">Promedio por registro</div>'
+        st.markdown(f'<div class="kpi-card"><div class="kpi-label">🧠 PROMEDIO POR REGISTRO</div>'
                     f'<div class="kpi-value success">{prom_pred}</div></div>',
                     unsafe_allow_html=True)
     with k4:
-        st.markdown(f'<div class="kpi-card"><div class="kpi-label">Producto más demandado</div>'
+        st.markdown(f'<div class="kpi-card"><div class="kpi-label">🔥 CATEGORÍA MÁS DEMANDADA</div>'
                     f'<div class="kpi-value purple" style="font-size:1.15rem;padding-top:0.3rem;">'
                     f'{producto_top}</div></div>',
                     unsafe_allow_html=True)
 
-    # ── Gráfico ───────────────────────────────────────────────────────────────
+    # ── GRÁFICOS ANALÍTICOS DINÁMICOS ─────────────────────────────────────────
     st.markdown(
         f'<div class="section-header"><div class="dot"></div>'
-        f'<div class="section-title">{tipo_analisis}</div></div>',
+        f'<div class="section-title">{tipo_analisis.upper()}</div></div>',
         unsafe_allow_html=True
     )
 
@@ -220,27 +220,64 @@ def show_dashboard():
         if tipo_tiempo == "Día":
             t = df_temporal.groupby("dia")["cantidad_predicha"].sum().reset_index()
             t["dia"] = pd.Categorical(t["dia"], categories=ORDEN_DIAS, ordered=True)
-            fig = px.bar(t.sort_values("dia"), x="dia", y="cantidad_predicha",
-                         text_auto=True, color_discrete_sequence=[ACCENT])
+            
+            fig = px.bar(
+                t.sort_values("dia"), 
+                x="dia", 
+                y="cantidad_predicha", # <--- Manteniendo el nombre exacto de tu columna
+                text_auto=True, 
+                color_discrete_sequence=[ACCENT],
+                labels={"dia": "📅 Día de la Semana", "cantidad_predicha": "cantidad_predicha"},
+                title=f"📈 DISTRIBUCIÓN DIARIA DE LA VARIABLE: cantidad_predicha"
+            )
+            
         elif tipo_tiempo == "Semana":
             t = df_temporal.groupby("semana")["cantidad_predicha"].sum().reset_index()
-            fig = px.line(t, x="semana", y="cantidad_predicha",
-                          markers=True, color_discrete_sequence=[ACCENT])
+            
+            fig = px.line(
+                t, 
+                x="semana", 
+                y="cantidad_predicha", # <--- Manteniendo el nombre exacto de tu columna
+                markers=True, 
+                color_discrete_sequence=[ACCENT],
+                labels={"semana": "📆 Número de Semana", "cantidad_predicha": "cantidad_predicha"},
+                title=f"📈 EVOLUCIÓN POR SEMANAS DE LA VARIABLE: cantidad_predicha"
+            )
+            fig.update_traces(line=dict(width=3.5), marker=dict(size=8, line=dict(width=1, color='#FFFFFF')))
+            
         elif tipo_tiempo == "Mes":
             t = df_temporal.groupby("mes_nombre")["cantidad_predicha"].sum().reset_index()
             t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
-            fig = px.line(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
-                          markers=True, color_discrete_sequence=[ACCENT])
+            
+            fig = px.line(
+                t.sort_values("mes_nombre"), 
+                x="mes_nombre", 
+                y="cantidad_predicha", # <--- Manteniendo el nombre exacto de tu columna
+                markers=True, 
+                color_discrete_sequence=[ACCENT],
+                labels={"mes_nombre": "📅 Periodo Mensual", "cantidad_predicha": "cantidad_predicha"},
+                title=f"📈 PROYECCIÓN MENSUAL CONSOLIDADA DE LA VARIABLE: cantidad_predicha"
+            )
+            fig.update_traces(line=dict(width=3.5), marker=dict(size=8, line=dict(width=1, color='#FFFFFF')))
+            
         else:  # Hora
             t = df_temporal.groupby("hora")["cantidad_predicha"].sum().reset_index()
-            fig = px.line(t, x="hora", y="cantidad_predicha",
-                          markers=True, color_discrete_sequence=[ACCENT])
+            
+            fig = px.line(
+                t, 
+                x="hora", 
+                y="cantidad_predicha", # <--- Manteniendo el nombre exacto de tu columna
+                markers=True, 
+                color_discrete_sequence=[ACCENT],
+                labels={"hora": "⏰ Bloque Horario", "cantidad_predicha": "cantidad_predicha"},
+                title=f"⏳ COMPORTAMIENTO POR HORAS DE LA VARIABLE: cantidad_predicha"
+            )
+            fig.update_traces(line=dict(width=3.5), marker=dict(size=8, line=dict(width=1, color='#FFFFFF')))
 
     # ==============================================================================
     # EXTENSIÓN DEL DASHBOARD: ANÁLISIS TEMPORALES ESTILIZADOS
     # ==============================================================================
     elif tipo_analisis == "Producto vs Tiempo":
-        # Agrupación usando estrictamente el nombre de tu variable interna
         t = df_filtrado.groupby(["producto", "mes_nombre"])["cantidad_predicha"].sum().reset_index()
         t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
         
