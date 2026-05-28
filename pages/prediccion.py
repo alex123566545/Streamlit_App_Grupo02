@@ -442,7 +442,7 @@ def show_prediccion():
                     f"**Ingreso estimado:** S/ {mejor['Ingreso (S/)']}"
                 )
 
-                sec("⚙️ Variables más influyentes (Random Forest)")
+        sec("⚙️ Variables más influyentes (Random Forest)")
             try:
                 importancias = model.named_steps["model"].feature_importances_
                 feat_names   = model.named_steps["preprocess"].get_feature_names_out()
