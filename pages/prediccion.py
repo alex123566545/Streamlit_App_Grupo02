@@ -406,7 +406,7 @@ def show_prediccion():
                     tickfont=dict(color="#ffffff"),  # ← números en eje Y
                     title_font=dict(color="#ffffff"),
                 ),
-            )
+                 )
 
             fig_det.update_traces(
                 textfont=dict(color="#ffffff"),      # ← números encima de las barras
