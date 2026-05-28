@@ -794,6 +794,17 @@ def show_prediccion():
                     title="Distribución de ingresos por zona",
                     hole=0.45,
                 ))
+                fig_zona.update_layout(
+                    height=360,
+                    title_font_color="#ffffff",        # ← título "Distribución de ingresos por zona"
+                    legend=dict(
+                        font=dict(color="#ffffff", size=14)  # ← leyenda (Comercial, Mixta, Residencial)
+                    )
+                )
+
+                fig_zona.update_traces(
+                    textfont=dict(color="#ffffff"),    # ← porcentajes/etiquetas dentro del gráfico
+                )
                 # ← AGREGA ESTO para cambiar el color de las letras
                 fig_zona.update_layout(
                     height=360,
