@@ -662,11 +662,46 @@ def show_prediccion():
                     hoverongaps=False,
                 ))
                 fig_heat.update_layout(
-                    **PLOTLY_DARK,
-                    height=max(300, len(heatmap_df) * 28),
-                    title="Demanda promedio por producto y zona",
-                    xaxis_title="Zona",
-                    yaxis_title="Producto",
+                **PLOTLY_DARK,
+
+                height=max(300, len(heatmap_df) * 28),
+
+                title=dict(
+                    text="Demanda promedio por producto y zona",
+                    font=dict(
+                        color="#ffffff",
+                        size=20
+                    )
+                ),
+
+                xaxis=dict(
+                    title="Zona",
+                    title_font=dict(color="#ffffff"),
+                    tickfont=dict(color="#ffffff")
+                ),
+
+                yaxis=dict(
+                    title="Producto",
+                    title_font=dict(color="#ffffff"),
+                    tickfont=dict(color="#ffffff")
+                ),
+
+                font=dict(
+                    color="#ffffff"
+                )
+                 )
+                fig_heat.update_traces(
+                    textfont=dict(
+                        color="#ffffff"
+                    ),
+
+                    colorbar=dict(
+                        tickfont=dict(color="#ffffff"),
+                        title=dict(
+                            text="Demanda",
+                            font=dict(color="#ffffff")
+                        )
+                    )
                 )
                 st.plotly_chart(fig_heat, use_container_width=True)
 
