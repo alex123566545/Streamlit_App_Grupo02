@@ -819,156 +819,204 @@ def show_prediccion():
     # ═══════════════════════════════════════════════════════
     # TAB 4 — ANÁLISIS ECONÓMICO
     # ═══════════════════════════════════════════════════════
-    with tab_economico:
-        st.subheader("💰 Análisis Económico")
-        st.markdown(
-            "Estimación de ingresos potenciales basada en el histórico de predicciones "
-            "y los precios promedio por producto. Incluye comparativa con/sin promoción "
-            "y escenarios de optimización de ingresos."
-        )
-
-        if historico_df.empty or precios_df.empty:
-            st.info("No hay datos suficientes para el análisis económico.")
-        else:
-            historico_norm = historico_df.copy()
-            precios_norm   = precios_df.copy()
-            historico_norm["producto"] = historico_norm["producto"].str.strip().str.lower()
-            precios_norm["producto"]   = precios_norm["producto"].str.strip().str.lower()
-
-            df_eco = historico_norm.merge(precios_norm, on="producto", how="left")
-
-            precio_mediana = df_eco["precio_promedio"].median()
-            df_eco["precio_promedio"] = df_eco["precio_promedio"].fillna(precio_mediana)
-
-            df_eco["ingreso_estimado"] = df_eco["cantidad_predicha"] * df_eco["precio_promedio"]
-
-            sec("💵 Indicadores económicos globales")
-
-            ingreso_total  = df_eco["ingreso_estimado"].sum()
-            ingreso_prom   = df_eco["ingreso_estimado"].mean()
-            producto_mayor = df_eco.groupby("producto")["ingreso_estimado"].sum().idxmax()
-            ingreso_mayor  = df_eco.groupby("producto")["ingreso_estimado"].sum().max()
-
-            e1, e2, e3 = st.columns(3)
-            e1.markdown(f'<div class="seg-card"><div class="seg-label">Ingreso total estimado</div><div class="seg-value" style="color:#4f8eff">S/ {ingreso_total:,.0f}</div><div class="seg-sub">Suma de todos los registros</div></div>', unsafe_allow_html=True)
-            e2.markdown(f'<div class="seg-card"><div class="seg-label">Ingreso promedio por registro</div><div class="seg-value" style="color:#34d399">S/ {ingreso_prom:,.2f}</div><div class="seg-sub">Promedio histórico</div></div>', unsafe_allow_html=True)
-            e3.markdown(f'<div class="seg-card"><div class="seg-label">Producto más rentable</div><div class="seg-value" style="color:#a78bfa;font-size:1.1rem;padding-top:0.2rem">{producto_mayor}</div><div class="seg-sub">S/ {ingreso_mayor:,.0f} acumulado</div></div>', unsafe_allow_html=True)
-
-            sec("📦 Ingresos estimados por producto")
-
-            ing_prod = (
-                df_eco.groupby("producto")
-                .agg(
-                    demanda_total   = ("cantidad_predicha", "sum"),
-                    precio_promedio = ("precio_promedio",   "mean"),
-                    ingreso_total   = ("ingreso_estimado",  "sum"),
-                )
-                .reset_index()
-                .sort_values("ingreso_total", ascending=False)
-            )
-            ing_prod["precio_promedio"] = ing_prod["precio_promedio"].round(2)
-            ing_prod["ingreso_total"]   = ing_prod["ingreso_total"].round(2)
-
-            fig_ing = dark_fig(px.bar(
-                ing_prod.head(12),
-                x="producto", y="ingreso_total",
-                color="ingreso_total",
-                color_continuous_scale="Blues",
-                text_auto=".0f",
-                title="Ingreso estimado total por producto (top 12)",
-            ))
-            fig_ing.update_layout(height=380, xaxis_tickangle=-35, coloraxis_showscale=False)
-            st.plotly_chart(fig_ing, use_container_width=True)
-
-            st.dataframe(
-                ing_prod.rename(columns={
-                    "producto":       "Producto",
-                    "demanda_total":  "Demanda total (uds)",
-                    "precio_promedio":"Precio promedio (S/)",
-                    "ingreso_total":  "Ingreso estimado (S/)",
-                }),
-                use_container_width=True, hide_index=True,
+        with tab_economico:
+            st.subheader("💰 Análisis Económico")
+            st.markdown(
+                "Estimación de ingresos potenciales basada en el histórico de predicciones "
+                "y los precios promedio por producto. Incluye comparativa con/sin promoción "
+                "y escenarios de optimización de ingresos."
             )
 
-            if "tipo_promocion" in df_eco.columns:
-                sec("🏷️ ROI de promociones — Ingreso promedio con vs sin promoción")
-                st.caption(
-                    "Se compara el ingreso estimado promedio entre registros con promoción activa "
-                    "y sin promoción. Un ROI positivo indica que la promoción genera más ingreso por transacción."
-                )
+            if historico_df.empty or precios_df.empty:
+                st.info("No hay datos suficientes para el análisis económico.")
+            else:
+                historico_norm = historico_df.copy()
+                precios_norm   = precios_df.copy()
+                historico_norm["producto"] = historico_norm["producto"].str.strip().str.lower()
+                precios_norm["producto"]   = precios_norm["producto"].str.strip().str.lower()
 
-                sin_promo_keywords = ["ninguno", "none", "sin promoción", "sin promo"]
-                df_eco["tiene_promo"] = ~df_eco["tipo_promocion"].str.lower().isin(sin_promo_keywords)
+                df_eco = historico_norm.merge(precios_norm, on="producto", how="left")
 
-                roi_df = (
-                    df_eco.groupby("tiene_promo")["ingreso_estimado"]
-                    .mean()
-                    .reset_index()
-                )
-                roi_df["Tipo"] = roi_df["tiene_promo"].map({True: "Con promoción", False: "Sin promoción"})
-                roi_df = roi_df.rename(columns={"ingreso_estimado": "Ingreso promedio (S/)"})
+                precio_mediana = df_eco["precio_promedio"].median()
+                df_eco["precio_promedio"] = df_eco["precio_promedio"].fillna(precio_mediana)
 
-                fig_roi = dark_fig(px.bar(
-                    roi_df, x="Tipo", y="Ingreso promedio (S/)",
-                    color="Tipo",
-                    color_discrete_map={"Con promoción": "#34d399", "Sin promoción": "#6b7280"},
-                    text_auto=".2f",
-                    title="Ingreso promedio: con vs sin promoción",
-                ))
-                fig_roi.update_layout(height=320, showlegend=False)
-                st.plotly_chart(fig_roi, use_container_width=True)
+                df_eco["ingreso_estimado"] = df_eco["cantidad_predicha"] * df_eco["precio_promedio"]
 
-                promo_eco = (
-                    df_eco.groupby("tipo_promocion")
+                sec("💵 Indicadores económicos globales")
+
+                ingreso_total  = df_eco["ingreso_estimado"].sum()
+                ingreso_prom   = df_eco["ingreso_estimado"].mean()
+                producto_mayor = df_eco.groupby("producto")["ingreso_estimado"].sum().idxmax()
+                ingreso_mayor  = df_eco.groupby("producto")["ingreso_estimado"].sum().max()
+
+                e1, e2, e3 = st.columns(3)
+                e1.markdown(f'<div class="seg-card"><div class="seg-label">Ingreso total estimado</div><div class="seg-value" style="color:#4f8eff">S/ {ingreso_total:,.0f}</div><div class="seg-sub">Suma de todos los registros</div></div>', unsafe_allow_html=True)
+                e2.markdown(f'<div class="seg-card"><div class="seg-label">Ingreso promedio por registro</div><div class="seg-value" style="color:#34d399">S/ {ingreso_prom:,.2f}</div><div class="seg-sub">Promedio histórico</div></div>', unsafe_allow_html=True)
+                e3.markdown(f'<div class="seg-card"><div class="seg-label">Producto más rentable</div><div class="seg-value" style="color:#a78bfa;font-size:1.1rem;padding-top:0.2rem">{producto_mayor}</div><div class="seg-sub">S/ {ingreso_mayor:,.0f} acumulado</div></div>', unsafe_allow_html=True)
+
+                # =========================================================
+                # 1. GRÁFICO: INGRESOS ESTIMADOS POR PRODUCTO (BAR)
+                # =========================================================
+                sec("📦 Ingresos estimados por producto")
+
+                ing_prod = (
+                    df_eco.groupby("producto")
                     .agg(
-                        ingreso_prom = ("ingreso_estimado", "mean"),
-                        ingreso_sum  = ("ingreso_estimado", "sum"),
-                        registros    = ("ingreso_estimado", "count"),
+                        demanda_total   = ("cantidad_predicha", "sum"),
+                        precio_promedio = ("precio_promedio",   "mean"),
+                        ingreso_total   = ("ingreso_estimado",  "sum"),
                     )
                     .reset_index()
-                    .sort_values("ingreso_prom", ascending=False)
-                    .rename(columns={
-                        "tipo_promocion": "Tipo de promoción",
-                        "ingreso_prom":   "Ingreso promedio (S/)",
-                        "ingreso_sum":    "Ingreso total (S/)",
-                        "registros":      "Registros",
-                    })
+                    .sort_values("ingreso_total", ascending=False)
                 )
-                promo_eco["Ingreso promedio (S/)"] = promo_eco["Ingreso promedio (S/)"].round(2)
-                promo_eco["Ingreso total (S/)"]    = promo_eco["Ingreso total (S/)"].round(2)
-                st.dataframe(promo_eco, use_container_width=True, hide_index=True)
+                ing_prod["precio_promedio"] = ing_prod["precio_promedio"].round(2)
+                ing_prod["ingreso_total"]   = ing_prod["ingreso_total"].round(2)
 
-            if "tipo_zona" in df_eco.columns:
-                sec("🏪 Ingresos estimados por zona")
+                fig_ing = px.bar(
+                    ing_prod.head(12),
+                    x="producto", y="ingreso_total",
+                    color="ingreso_total",
+                    color_continuous_scale="Blues",
+                    text_auto=".0f",
+                    title="Ingreso estimado total por producto (top 12)",
+                )
+                fig_ing = dark_fig(fig_ing)
+                fig_ing.update_layout(
+                    height=380, 
+                    xaxis_tickangle=-35, 
+                    coloraxis_showscale=False,
+                    title=dict(text="Ingreso estimado total por producto (top 12)", font=dict(color="white")),
+                    font=dict(color="white"),
+                    xaxis=dict(
+                        tickfont=dict(color="white"),
+                        title=dict(text="Producto", font=dict(color="white"))
+                    ),
+                    yaxis=dict(
+                        tickfont=dict(color="white"),
+                        title=dict(text="Ingreso total (S/)", font=dict(color="white"))
+                    )
+                )
+                fig_ing.update_traces(textfont=dict(color="white"), textposition="outside")
+                st.plotly_chart(fig_ing, use_container_width=True)
 
-                zona_eco = (
-                    df_eco.groupby("tipo_zona")["ingreso_estimado"]
-                    .agg(["sum", "mean"])
-                    .reset_index()
-                    .rename(columns={
-                        "tipo_zona": "Zona",
-                        "sum":       "Ingreso total (S/)",
-                        "mean":      "Ingreso promedio (S/)",
-                    })
-                    .sort_values("Ingreso total (S/)", ascending=False)
+                st.dataframe(
+                    ing_prod.rename(columns={
+                        "producto":       "Producto",
+                        "demanda_total":  "Demanda total (uds)",
+                        "precio_promedio":"Precio promedio (S/)",
+                        "ingreso_total":  "Ingreso estimado (S/)",
+                    }),
+                    use_container_width=True, hide_index=True,
                 )
 
-                fig_zona = dark_fig(px.pie(
-                    zona_eco,
-                    names="Zona",
-                    values="Ingreso total (S/)",
-                    color_discrete_sequence=COLOR_SEQ,
-                    title="Distribución de ingresos por zona",
-                    hole=0.45,
-                ))
-                fig_zona.update_layout(height=360)
-                st.plotly_chart(fig_zona, use_container_width=True)
+                # =========================================================
+                # 2. GRÁFICO: ROI DE PROMOCIONES (BAR)
+                # =========================================================
+                if "tipo_promocion" in df_eco.columns:
+                    sec("🏷️ ROI de promociones — Ingreso promedio con vs sin promoción")
+                    st.caption(
+                        "Se compara el ingreso estimado promedio entre registros con promoción activa "
+                        "y sin promoción. Un ROI positivo indica que la promoción genera más ingreso por transacción."
+                    )
 
-            sec("🎯 Producto de mayor potencial económico")
-            mejor_prod = ing_prod.iloc[0]
-            st.success(
-                f"**Producto más rentable:** {mejor_prod['producto']}\n\n"
-                f"**Demanda total estimada:** {int(mejor_prod['demanda_total']):,} unidades\n\n"
-                f"**Precio promedio:** S/ {mejor_prod['precio_promedio']}\n\n"
-                f"**Ingreso total estimado:** S/ {mejor_prod['ingreso_total']:,.2f}"
-            )
+                    sin_promo_keywords = ["ninguno", "none", "sin promoción", "sin promo"]
+                    df_eco["tiene_promo"] = ~df_eco["tipo_promocion"].str.lower().isin(sin_promo_keywords)
+
+                    roi_df = (
+                        df_eco.groupby("tiene_promo")["ingreso_estimado"]
+                        .mean()
+                        .reset_index()
+                    )
+                    roi_df["Tipo"] = roi_df["tiene_promo"].map({True: "Con promoción", False: "Sin promoción"})
+                    roi_df = roi_df.rename(columns={"ingreso_estimado": "Ingreso promedio (S/)"})
+
+                    fig_roi = px.bar(
+                        roi_df, x="Tipo", y="Ingreso promedio (S/)",
+                        color="Tipo",
+                        color_discrete_map={"Con promoción": "#34d399", "Sin promoción": "#6b7280"},
+                        text_auto=".2f",
+                        title="Ingreso promedio: con vs sin promoción",
+                    )
+                    fig_roi = dark_fig(fig_roi)
+                    fig_roi.update_layout(
+                        height=320, 
+                        showlegend=False,
+                        title=dict(text="Ingreso promedio: con vs sin promoción", font=dict(color="white")),
+                        font=dict(color="white"),
+                        xaxis=dict(
+                            tickfont=dict(color="white"),
+                            title=dict(text="Tipo", font=dict(color="white"))
+                        ),
+                        yaxis=dict(
+                            tickfont=dict(color="white"),
+                            title=dict(text="Ingreso promedio (S/)", font=dict(color="white"))
+                        )
+                    )
+                    fig_roi.update_traces(textfont=dict(color="white"), textposition="outside")
+                    st.plotly_chart(fig_roi, use_container_width=True)
+
+                    promo_eco = (
+                        df_eco.groupby("tipo_promocion")
+                        .agg(
+                            ingreso_prom = ("ingreso_estimado", "mean"),
+                            ingreso_sum  = ("ingreso_estimado", "sum"),
+                            registros    = ("ingreso_estimado", "count"),
+                        )
+                        .reset_index()
+                        .sort_values("ingreso_prom", ascending=False)
+                        .rename(columns={
+                            "tipo_promocion": "Tipo de promoción",
+                            "ingreso_prom":   "Ingreso promedio (S/)",
+                            "ingreso_sum":    "Ingreso total (S/)",
+                            "registros":      "Registros",
+                        })
+                    )
+                    promo_eco["Ingreso promedio (S/)"] = promo_eco["Ingreso promedio (S/)"].round(2)
+                    promo_eco["Ingreso total (S/)"]    = promo_eco["Ingreso total (S/)"].round(2)
+                    st.dataframe(promo_eco, use_container_width=True, hide_index=True)
+
+                # =========================================================
+                # 3. GRÁFICO: DISTRIBUCIÓN POR ZONA (PIE)
+                # =========================================================
+                if "tipo_zona" in df_eco.columns:
+                    sec("🏪 Ingresos estimados por zona")
+
+                    zona_eco = (
+                        df_eco.groupby("tipo_zona")["ingreso_estimado"]
+                        .agg(["sum", "mean"])
+                        .reset_index()
+                        .rename(columns={
+                            "tipo_zona": "Zona",
+                            "sum":       "Ingreso total (S/)",
+                            "mean":      "Ingreso promedio (S/)",
+                        })
+                        .sort_values("Ingreso total (S/)", ascending=False)
+                    )
+
+                    fig_zona = px.pie(
+                        zona_eco,
+                        names="Zona",
+                        values="Ingreso total (S/)",
+                        color_discrete_sequence=COLOR_SEQ,
+                        title="Distribución de ingresos por zona",
+                        hole=0.45,
+                    )
+                    fig_zona = dark_fig(fig_zona)
+                    fig_zona.update_layout(
+                        height=360,
+                        title=dict(text="Distribución de ingresos por zona", font=dict(color="white")),
+                        font=dict(color="white"),
+                        legend=dict(font=dict(color="white")),
+                        legend_title=dict(text="Zona", font=dict(color="white"))
+                    )
+                    fig_zona.update_traces(textinfo="percent+label", textfont=dict(color="white"))
+                    st.plotly_chart(fig_zona, use_container_width=True)
+
+                sec("🎯 Producto de mayor potencial económico")
+                mejor_prod = ing_prod.iloc[0]
+                st.success(
+                    f"**Producto más rentable:** {mejor_prod['producto']}\n\n"
+                    f"**Demanda total estimada:** {int(mejor_prod['demanda_total']):,} unidades\n\n"
+                    f"**Precio promedio:** S/ {mejor_prod['precio_promedio']}\n\n"
+                    f"**Ingreso total estimado:** S/ {mejor_prod['ingreso_total']:,.2f}"
+                )
