@@ -239,14 +239,22 @@ def dark_fig(fig):
     fig.update_layout(
         **PLOTLY_DARK,
 
+        # Texto general
         font=dict(
-            color="#ffffff"
+            family="DM Sans",
+            color="#ffffff",
+            size=13
         ),
 
-        title_font=dict(
-            color="#ffffff"
+        # Títulos
+        title=dict(
+            font=dict(
+                color="#ffffff",
+                size=18
+            )
         ),
 
+        # Leyenda
         legend=dict(
             font=dict(color="#ffffff"),
             bgcolor="rgba(22,25,32,0.8)",
@@ -254,34 +262,29 @@ def dark_fig(fig):
             borderwidth=1
         ),
 
-        xaxis=dict(
-            tickfont=dict(color="#ffffff"),
-            titlefont=dict(color="#ffffff")
+        # Hover
+        hoverlabel=dict(
+            font=dict(color="#ffffff"),
+            bgcolor="#1c1f2b"
         ),
-
-        yaxis=dict(
-            tickfont=dict(color="#ffffff"),
-            titlefont=dict(color="#ffffff")
-        ),
-
-        coloraxis_colorbar=dict(
-            tickfont=dict(color="#ffffff"),
-            titlefont=dict(color="#ffffff")
-        )
     )
 
+    # EJE X
     fig.update_xaxes(
-        gridcolor="rgba(255,255,255,0.05)",
-        linecolor="rgba(255,255,255,0.05)",
+        gridcolor="rgba(255,255,255,0.08)",
+        linecolor="rgba(255,255,255,0.15)",
         tickfont=dict(color="#ffffff"),
-        title_font=dict(color="#ffffff")
+        title_font=dict(color="#ffffff"),
+        zerolinecolor="rgba(255,255,255,0.10)"
     )
 
+    # EJE Y
     fig.update_yaxes(
-        gridcolor="rgba(255,255,255,0.05)",
-        linecolor="rgba(255,255,255,0.05)",
+        gridcolor="rgba(255,255,255,0.08)",
+        linecolor="rgba(255,255,255,0.15)",
         tickfont=dict(color="#ffffff"),
-        title_font=dict(color="#ffffff")
+        title_font=dict(color="#ffffff"),
+        zerolinecolor="rgba(255,255,255,0.10)"
     )
 
     return fig
