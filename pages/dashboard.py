@@ -63,8 +63,8 @@ ORDEN_MESES = ["January", "February", "March", "April", "May", "June",
                "July", "August", "September", "October", "November", "December"]
 
 def apply_layout(fig):
+    fig.update_layout(**PLOTLY_LAYOUT)
     fig.update_layout(
-        **PLOTLY_LAYOUT,
         title_font_color="#ffffff",
         font=dict(color="#ffffff"),
         legend=dict(font=dict(color="#ffffff")),
