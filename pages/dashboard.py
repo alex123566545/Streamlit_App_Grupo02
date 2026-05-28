@@ -259,10 +259,27 @@ def show_dashboard():
         t["mes_nombre"] = pd.Categorical(t["mes_nombre"], categories=ORDEN_MESES, ordered=True)
         fig = px.bar(t.sort_values("mes_nombre"), x="mes_nombre", y="cantidad_predicha",
                      color="tipo_zona", barmode="group", color_discrete_sequence=COLOR_SEQ)
-
     if fig:
-        apply_layout(fig)
-        st.plotly_chart(fig, use_container_width=True)
+            apply_layout(fig)
+            fig.update_layout(
+                title_font_color="#ffffff",
+                font=dict(color="#ffffff"),
+                xaxis=dict(
+                    tickfont=dict(color="#ffffff"),
+                    title_font=dict(color="#ffffff"),
+                ),
+                yaxis=dict(
+                    tickfont=dict(color="#ffffff"),
+                    title_font=dict(color="#ffffff"),
+                ),
+                legend=dict(
+                    font=dict(color="#ffffff"),
+                ),
+            )
+            fig.update_traces(
+                textfont=dict(color="#ffffff"),
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
     # ── Tabla ─────────────────────────────────────────────────────────────────
     st.markdown(
