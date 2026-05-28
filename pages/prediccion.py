@@ -442,33 +442,33 @@ def show_prediccion():
                     f"**Ingreso estimado:** S/ {mejor['Ingreso (S/)']}"
                 )
 
-        sec("⚙️ Variables más influyentes (Random Forest)")
-            try:
-                importancias = model.named_steps["model"].feature_importances_
-                feat_names   = model.named_steps["preprocess"].get_feature_names_out()
-                imp_df = (
-                    pd.DataFrame({"Variable": feat_names, "Importancia": importancias})
-                    .sort_values("Importancia", ascending=False)
-                    .head(10)
-                )
-                fig_imp = dark_fig(px.bar(
-                    imp_df, x="Variable", y="Importancia", text_auto=True,
-                    color="Importancia", color_continuous_scale="Blues",
-                ))
-                
-                # --- Modificaciones para las letras blancas ---
-                fig_imp.update_layout(
-                    height=350, 
-                    coloraxis_showscale=False,
-                    font=dict(color="white")  # Hace blanca la fuente de los ejes, títulos, etc.
-                )
-                # Hace que el texto automático DENTRO o SOBRE las barras también sea blanco
-                fig_imp.update_traces(textfont=dict(color="white"), textposition="outside") 
-                # -----------------------------------------------
+                        sec("⚙️ Variables más influyentes (Random Forest)")
+        try:
+            importancias = model.named_steps["model"].feature_importances_
+            feat_names   = model.named_steps["preprocess"].get_feature_names_out()
+            imp_df = (
+                pd.DataFrame({"Variable": feat_names, "Importancia": importancias})
+                .sort_values("Importancia", ascending=False)
+                .head(10)
+            )
+            fig_imp = dark_fig(px.bar(
+                imp_df, x="Variable", y="Importancia", text_auto=True,
+                color="Importancia", color_continuous_scale="Blues",
+            ))
+            
+            # --- Modificaciones para las letras blancas ---
+            fig_imp.update_layout(
+                height=350, 
+                coloraxis_showscale=False,
+                font=dict(color="white")  # Hace blanca la fuente de los ejes, títulos, etc.
+            )
+            # Hace que el texto automático DENTRO o SOBRE las barras también sea blanco
+            fig_imp.update_traces(textfont=dict(color="white"), textposition="outside") 
+            # -----------------------------------------------
 
-                st.plotly_chart(fig_imp, use_container_width=True)
-            except Exception as e:
-                st.caption(f"Importancia no disponible: {e}")
+            st.plotly_chart(fig_imp, use_container_width=True)
+        except Exception as e:
+            st.caption(f"Importancia no disponible: {e}")
 
     # ═══════════════════════════════════════════════════════
     # TAB 2 — HISTÓRICO
