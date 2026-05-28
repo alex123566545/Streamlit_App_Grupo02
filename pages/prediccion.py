@@ -236,9 +236,9 @@ COLOR_SEQ = ["#4f8eff", "#a78bfa", "#34d399", "#f97316", "#fb7185", "#fbbf24"]
 
 def dark_fig(fig):
 
-    fig.update_layout(
-        **PLOTLY_DARK,
+    fig.update_layout(**PLOTLY_DARK)
 
+    fig.update_layout(
         font=dict(
             color="#ffffff",
             family="DM Sans"
@@ -246,14 +246,7 @@ def dark_fig(fig):
 
         title_font=dict(
             color="#ffffff"
-        ),
-
-        legend=dict(
-            font=dict(color="#ffffff"),
-            bgcolor="rgba(22,25,32,0.8)",
-            bordercolor="rgba(255,255,255,0.07)",
-            borderwidth=1
-        ),
+        )
     )
 
     fig.update_xaxes(
