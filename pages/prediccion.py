@@ -453,31 +453,37 @@ def show_prediccion():
                     
                     # 1. Creamos el gráfico base
                     fig_imp = px.bar(
-                        imp_df, x="Variable", y="Importancia", text_auto=".3f", # .3f para mostrar 3 decimales limpios
+                        imp_df, x="Variable", y="Importancia", text_auto=".3f",
                         color="Importancia", color_continuous_scale="Blues",
                     )
                     
                     # 2. Le aplicas tu función oscura
                     fig_imp = dark_fig(fig_imp)
                     
-                    # 3. FORZAMOS el color blanco en el Layout y en los ejes explicitamente
+                    # 3. Corregimos la estructura de los ejes para evitar el error
                     fig_imp.update_layout(
                         height=350, 
                         coloraxis_showscale=False,
-                        font=dict(color="white"),      # Color de fuente global
-                        xaxis=dict(tickfont=dict(color="white"), titlefont=dict(color="white")), # Eje X blanco
-                        yaxis=dict(tickfont=dict(color="white"), titlefont=dict(color="white"))  # Eje Y blanco
+                        font=dict(color="white"), # Color global de la fuente
+                        xaxis=dict(
+                            tickfont=dict(color="white"),
+                            title=dict(text="Variable", font=dict(color="white"))
+                        ),
+                        yaxis=dict(
+                            tickfont=dict(color="white"),
+                            title=dict(text="Importancia", font=dict(color="white"))
+                        )
                     )
                     
-                    # 4. FORZAMOS el color blanco en las etiquetas de texto de las barras
+                    # 4. Forzamos las etiquetas de las barras a blanco fuera de ellas
                     fig_imp.update_traces(
                         textfont=dict(color="white"), 
-                        textposition="outside" # Saca el texto de la barra para que resalte en el fondo oscuro
+                        textposition="outside"
                     ) 
 
                     st.plotly_chart(fig_imp, use_container_width=True)
                 except Exception as e:
-                    st.caption(f"Importancia no disponible: {e}")                            
+                    st.caption(f"Importancia no disponible: {e}")          
 
     # ═══════════════════════════════════════════════════════
     # TAB 2 — HISTÓRICO
