@@ -804,7 +804,6 @@ def show_prediccion():
                         )
                     )
                 )
-                st.plotly_chart(fig_zona, use_container_width=True)
                 
                 fig_zona.update_layout(height=360)
                 st.plotly_chart(fig_zona, use_container_width=True)
