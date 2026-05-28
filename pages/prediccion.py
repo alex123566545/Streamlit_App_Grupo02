@@ -392,6 +392,25 @@ def show_prediccion():
                     text_auto=True,
                     title="Unidades por día (morado = fin de semana)",
                 ))
+
+                            fig_det.update_layout(
+                height=320,
+                showlegend=False,
+                title_font_color="#ffffff",          # ← título del gráfico
+                font=dict(color="#ffffff"),          # ← todos los textos (ejes, etiquetas)
+                xaxis=dict(
+                    tickfont=dict(color="#ffffff"),  # ← fechas en eje X
+                    title_font=dict(color="#ffffff"),
+                ),
+                yaxis=dict(
+                    tickfont=dict(color="#ffffff"),  # ← números en eje Y
+                    title_font=dict(color="#ffffff"),
+                ),
+            )
+
+            fig_det.update_traces(
+                textfont=dict(color="#ffffff"),      # ← números encima de las barras
+            )
                 fig_det.update_layout(height=320, showlegend=False)
                 st.plotly_chart(fig_det, use_container_width=True)
 
