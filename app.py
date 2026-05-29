@@ -235,7 +235,6 @@ if pagina == "Inicio":
         <div class="stat-item"><div class="stat-value">94%</div><div class="stat-label">Precisión</div></div>
         <div class="stat-item"><div class="stat-value">+12</div><div class="stat-label">Indicadores</div></div>
         <div class="stat-item"><div class="stat-value">Real</div><div class="stat-label">Tiempo</div></div>
-        <div class="stat-item"><div class="stat-value">5+</div><div class="stat-label">Modelos IA</div></div>
     </div>
     <div class="cards-grid">
         <div class="cap-card"><span class="cap-icon">📊</span><div class="cap-title">Análisis de Demanda</div><div class="cap-desc">Visualiza tendencias y patrones de consumo por producto y zona.</div></div>
